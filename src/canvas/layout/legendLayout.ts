@@ -121,7 +121,10 @@ export function placeLegendSnippets(
   const gap = L.labelGap * sizeScale;
   const growPx = Math.max(2, L.growStep * sizeScale);
 
-  // Base staircase: outer longest in screen pixels along the arc.
+  // Base staircase: outer longest in screen pixels along the arc. Also keep a
+  // minimum tip-to-tip travel so tight rings (unemployment steps) cannot stack
+  // labels on top of each other near 12 o'clock.
+  const minTipPx = fontH + gap;
   const spans = byRadius.map((mark, i) => {
     const r = Math.max(mark.r, 1);
     let pixels = snippet + i * lengthStep;
@@ -129,13 +132,21 @@ export function placeLegendSnippets(
     pixels = extend * r;
     return { mark, r, pixels, extend };
   });
-  for (let i = 1; i < spans.length; i++) {
-    const prev = spans[i - 1]!;
+  let prevExtend = 0;
+  for (let i = 0; i < spans.length; i++) {
     const cur = spans[i]!;
-    if (cur.pixels <= prev.pixels) {
-      cur.pixels = Math.min(prev.pixels + lengthStep, L.resolveArc * cur.r);
-      cur.extend = cur.pixels / cur.r;
+    if (i > 0) {
+      const floor = prevExtend + minTipPx / cur.r;
+      if (cur.extend < floor) {
+        cur.extend = Math.min(floor, L.resolveArc);
+        cur.pixels = cur.extend * cur.r;
+      }
+      if (cur.pixels <= spans[i - 1]!.pixels) {
+        cur.pixels = Math.min(spans[i - 1]!.pixels + lengthStep, L.resolveArc * cur.r);
+        cur.extend = cur.pixels / cur.r;
+      }
     }
+    prevExtend = cur.extend;
   }
 
   const placed: LegendSnippetPlace[] = [];
@@ -148,10 +159,14 @@ export function placeLegendSnippets(
     while (boxes.some((box) => overlaps(box, candidate.box, gap)) && span.extend < L.resolveArc) {
       span.pixels = Math.min(span.pixels + growPx, L.resolveArc * span.r);
       span.extend = span.pixels / span.r;
-      // Keep strict outer-long staircase after a grow.
       for (let j = i + 1; j < spans.length; j++) {
         const inner = spans[j - 1]!;
         const outer = spans[j]!;
+        const floor = inner.extend + minTipPx / outer.r;
+        if (outer.extend < floor) {
+          outer.extend = Math.min(floor, L.resolveArc);
+          outer.pixels = outer.extend * outer.r;
+        }
         if (outer.pixels <= inner.pixels) {
           outer.pixels = Math.min(inner.pixels + lengthStep, L.resolveArc * outer.r);
           outer.extend = outer.pixels / outer.r;
