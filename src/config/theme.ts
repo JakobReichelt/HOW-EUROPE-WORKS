@@ -88,10 +88,13 @@ export const theme = {
   },
   world: {
     /**
-     * Radius of the smallest country donut (Figma small = 256).
-     * Others scale as sqrt(workingPeople / min) so area matches headcount.
+     * Smallest / largest country donut radius (Figma small = 256).
+     * Working people map linearly onto circle AREA between these radii; the
+     * drawn radius is sqrt(area). maxRadius is above the Figma large (400) so
+     * area differences stay readable.
      */
     minRadius: 256,
+    maxRadius: 800,
     /**
      * Gap between neighbouring donuts, in world px.
      * Clears a city name on one ring and the two-line hover on the other:
@@ -101,10 +104,9 @@ export const theme = {
     /**
      * World units per degree of latitude for the geographic seed.
      * Longitude is scaled by cos(48 deg) so east-west degrees match north-south ones.
-     * Tuned so the drawn rings meet and neighbours stay in map order once radii
-     * follow real headcount (largest ~6x the smallest).
+     * Tuned so the drawn rings meet and neighbours stay in map order.
      */
-    geoScale: 350,
+    geoScale: 200,
     /** Country centred on first view (Figma 347:6230). */
     initialCountry: 'FR',
   },

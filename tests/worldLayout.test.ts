@@ -67,16 +67,19 @@ describe('worldLayout', () => {
     expect(worldLayout(dataset.countries, dataset.cities)).toEqual(nodes);
   });
 
-  it('keeps the smallest country at minRadius and scales others by sqrt of headcount', () => {
+  it('maps working people linearly onto circle area between minRadius and maxRadius', () => {
     const radius = radiusScale(dataset.countries);
     const people = dataset.countries.map((c) => c.workingPeople);
     const lo = Math.min(...people);
     const hi = Math.max(...people);
+    const areaMin = Math.PI * theme.world.minRadius ** 2;
+    const areaMax = Math.PI * theme.world.maxRadius ** 2;
     expect(radius(lo)).toBeCloseTo(theme.world.minRadius);
-    expect(radius(hi)).toBeCloseTo(theme.world.minRadius * Math.sqrt(hi / lo));
+    expect(radius(hi)).toBeCloseTo(theme.world.maxRadius);
     for (const country of dataset.countries) {
-      const expected = theme.world.minRadius * Math.sqrt(country.workingPeople / lo);
-      expect(radius(country.workingPeople)).toBeCloseTo(expected);
+      const t = (country.workingPeople - lo) / (hi - lo);
+      const area = Math.PI * radius(country.workingPeople) ** 2;
+      expect(area).toBeCloseTo(areaMin + (areaMax - areaMin) * t);
     }
   });
 });

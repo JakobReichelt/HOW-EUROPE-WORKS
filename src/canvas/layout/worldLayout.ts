@@ -23,16 +23,21 @@ export interface WorldNode {
 }
 
 /**
- * Radius so donut area is proportional to working people.
- * The smallest country stays at world.minRadius; every other radius follows
- * sqrt(people / minPeople) with no upper clamp.
+ * Size encodes working people by circle AREA, not by radius.
+ * People map linearly onto area between pi*minRadius^2 and pi*maxRadius^2;
+ * the radius drawn is sqrt(area / pi). Endpoints stay at minRadius / maxRadius.
  */
 export function radiusScale(countries: Country[]): (workingPeople: number) => number {
   const people = countries.map((c) => Math.max(0, c.workingPeople));
   const lo = Math.min(...people);
+  const hi = Math.max(...people);
+  const areaMin = Math.PI * w.minRadius * w.minRadius;
+  const areaMax = Math.PI * w.maxRadius * w.maxRadius;
   return (workingPeople) => {
-    if (!(lo > 0)) return w.minRadius;
-    return w.minRadius * Math.sqrt(Math.max(0, workingPeople) / lo);
+    if (hi <= lo) return w.maxRadius;
+    const t = (Math.max(0, workingPeople) - lo) / (hi - lo);
+    const area = areaMin + (areaMax - areaMin) * Math.min(1, Math.max(0, t));
+    return Math.sqrt(area / Math.PI);
   };
 }
 
