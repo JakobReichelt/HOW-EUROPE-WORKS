@@ -307,13 +307,9 @@
   text-align: left;
 }
 
-.clear-selection:not([hidden]) {
-  margin-bottom: 8px;
-}
-
 .country-list {
   list-style: none;
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;

@@ -187,9 +187,14 @@ export const theme = {
     subtitle: { x: 776, y: 368 },
     start: { x: 523, y: 432 },
     skip: { x: 776, y: 432 },
+    /**
+     * Centres from Figma CSS (translate-centered wrappers on the 1536 x 960 frame),
+     * not AABB metadata. R is half the Aussen SVG size so rings sit in the corners
+     * and leave the title on white.
+     */
     fragments: [
-      { countryId: 'FR', x: 328, y: 901, R: 810, rotation: 0.524, rotateTo: -1.745 },
-      { countryId: 'DE', x: 1550, y: 506, R: 340, rotation: -1.439, rotateTo: 4.844 },
+      { countryId: 'FR', x: -265, y: 901, R: 593, rotation: 0.524, rotateTo: -1.745 },
+      { countryId: 'DE', x: 1550, y: -95, R: 303, rotation: -1.439, rotateTo: 4.844 },
     ],
   },
   /**

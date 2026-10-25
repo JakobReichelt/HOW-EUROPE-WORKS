@@ -18,7 +18,7 @@ export function createActions(store: Store<AppState>) {
       set({ scene: 'intro', introStep: 0, hover: NO_HOVER });
     },
     goToExplore() {
-      set({ scene: 'explore', hover: NO_HOVER });
+      set({ scene: 'explore', selection: [], legendOpen: false, hover: NO_HOVER });
     },
     goToLanding() {
       set({ scene: 'landing', selection: [], hover: NO_HOVER });

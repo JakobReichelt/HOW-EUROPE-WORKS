@@ -44,6 +44,19 @@ describe('actions', () => {
     });
   });
 
+  it('skip intro opens explore the same way finishing the intro does', () => {
+    const store = createStore(initialState);
+    const actions = createActions(store);
+    actions.selectCountries(['FR']);
+    actions.toggleLegend(true);
+    actions.goToExplore();
+    expect(store.getState()).toMatchObject({
+      scene: 'explore',
+      selection: [],
+      legendOpen: false,
+    });
+  });
+
   it('toggles countries in selection order', () => {
     const store = createStore(initialState);
     const actions = createActions(store);

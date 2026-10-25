@@ -1,6 +1,6 @@
 /**
  * How the explore camera takes over from another view.
- * Intro: the Switzerland donut stays at the same canvas position and size.
+ * Intro / skip: the Switzerland donut stays at the same canvas position and size.
  * Selection: closing focus / compare opens the map on the first country in that donut.
  */
 import { introDonutScreen } from '../../config/introFrame';

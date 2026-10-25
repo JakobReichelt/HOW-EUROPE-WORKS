@@ -130,7 +130,9 @@ export class ExploreScene implements Scene {
     this.session = null;
     this.dropTarget = null;
     this.shownSelection = null;
-    if (from === 'intro' && INTRO_STEPS[ctx.state.introStep]?.figure === 'donut') {
+    // Finish intro (donut step) and "skip intro" both open on Switzerland at the intro pose.
+    const fromIntroDonut = from === 'intro' && INTRO_STEPS[ctx.state.introStep]?.figure === 'donut';
+    if (fromIntroDonut || from === 'landing') {
       const node = this.nodes.find((n) => n.countryId === INTRO_COUNTRY_ID);
       if (node) {
         this.camera = cameraMatchingIntro(
