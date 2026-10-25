@@ -1,0 +1,8 @@
+dist
+node_modules
+coverage
+assets
+data/raw
+public/data
+package-lock.json
+docs/SPEC.md

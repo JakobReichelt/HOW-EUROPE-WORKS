@@ -1,0 +1,208 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--c-paper);
+  color: var(--c-ink);
+  font-family: var(--font);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+button:focus-visible,
+input:focus-visible,
+canvas:focus-visible {
+  outline: 1px dashed var(--c-ink);
+  outline-offset: 2px;
+}
+
+/* ---- layers: canvas below, DOM UI on top. UI root lets pointer events through. ---- */
+
+.layer {
+  position: fixed;
+  inset: 0;
+}
+
+.layer--canvas canvas {
+  display: block;
+  touch-action: none;
+}
+
+.layer--ui {
+  pointer-events: none;
+}
+
+.layer--ui > * {
+  pointer-events: auto;
+}
+
+.legend-shield {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  /* Match sidebar + sector marks that bleed into the canvas. */
+  width: calc(var(--strip-width) + var(--panel-width) + var(--mark-bleed));
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+/* ---- shared ---- */
+
+.c-public {
+  color: var(--c-public);
+}
+.c-trade {
+  color: var(--c-trade);
+}
+.c-business {
+  color: var(--c-business);
+}
+.c-bg-public {
+  background: var(--c-public);
+}
+.c-bg-trade {
+  background: var(--c-trade);
+}
+.c-bg-business {
+  background: var(--c-business);
+}
+.c-bg-industry {
+  background: var(--c-industry);
+}
+
+.link {
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
+}
+
+.link--muted {
+  opacity: 0.5;
+}
+
+.link--small {
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+}
+
+/* ---- landing (Figma 393:13621) ---- */
+
+.landing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.landing > * {
+  pointer-events: auto;
+}
+
+.landing__title {
+  margin: 0;
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: 700;
+  letter-spacing: -0.76px;
+}
+
+.landing__subtitle {
+  margin: 0;
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
+}
+
+.landing__actions {
+  display: flex;
+  gap: 32px;
+}
+
+/* ---- intro (Figma 415:1295 ... 419:2812), laid out on the 1536 x 960 frame ---- */
+
+.intro {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.intro__stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1536px;
+  height: 960px;
+  transform-origin: 0 0;
+}
+
+.intro__block {
+  position: absolute;
+}
+
+.intro__line {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+}
+
+.intro__run--semibold {
+  font-weight: 600;
+}
+
+.intro__back,
+.intro__next {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  pointer-events: auto;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+}
+
+.intro__arrow {
+  display: block;
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
+  height: var(--lh-s);
+}
+
+.intro__next--beside {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.intro__next--beside .intro__arrow {
+  order: 2;
+}

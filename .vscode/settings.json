@@ -1,0 +1,13 @@
+{
+  "files.encoding": "utf8",
+  "files.autoGuessEncoding": false,
+  "files.eol": "\n",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    "**/node_modules": true
+  },
+  "liveServer.settings.root": "/dist",
+  "liveServer.settings.ignoreFiles": ["src/**", "node_modules/**"]
+}

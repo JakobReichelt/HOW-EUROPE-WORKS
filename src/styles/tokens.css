@@ -1,0 +1,43 @@
+/* Design tokens. Keep in sync with src/config/theme.ts. */
+
+@font-face {
+  font-family: 'Baikal VAR';
+  src: url('../assets/fonts/Baikal-VAR-VF.ttf') format('truetype');
+
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --c-ink: #000000;
+  --c-paper: #ffffff;
+  --c-shadow: #dadedc;
+  --c-muted: #a9a9a9;
+  --c-muted-dark: #808080;
+  --c-field: #eeeeee;
+  --c-public: #cce3de;
+  --c-trade: #4da1a9;
+  --c-business: #ffa630;
+  --c-industry: #e8e6bd;
+
+  --font: 'Baikal VAR', system-ui, sans-serif;
+  --fs-xs: 14px;
+  --lh-xs: 16px;
+  --fs-s: 18px;
+  --lh-s: 20px;
+  --fs-title: 38px;
+  --lh-title: 32px;
+
+  --strip-width: 24px;
+  --panel-width: 127px;
+
+  --line: 1px solid var(--c-ink);
+  --pad: 16px;
+  --gap: 8px;
+  --mark: 8px;
+  /* Half the 14px sector mark, plus a pixel, so a centred mark clears the border. */
+  --mark-bleed: 8px;
+  /* Vertical "Interaction" title (~100px) + top/bottom pad. */
+  --header-height: 132px;
+}

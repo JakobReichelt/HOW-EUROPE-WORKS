@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+
+# local scratch / editor noise
+enc_test.txt
+t1.md
+t2.txt
+.cursor/
+
+# design refs (PDFs, screencast) - not part of the web app
+/assets/
+
+

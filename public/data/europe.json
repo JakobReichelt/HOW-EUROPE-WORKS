@@ -1,0 +1,1255 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-25",
+  "source": "Eurostat Urban Audit, data/raw/eurostat_european_cities.csv",
+  "countries": [
+    {
+      "id": "AT",
+      "name": "Austria",
+      "geo": {
+        "lon": 14.5,
+        "lat": 47.5
+      },
+      "workingPeople": 1096389,
+      "cityIds": [
+        "wien",
+        "graz",
+        "linz"
+      ]
+    },
+    {
+      "id": "BE",
+      "name": "Belgium",
+      "geo": {
+        "lon": 4.5,
+        "lat": 50.6
+      },
+      "workingPeople": 894717,
+      "cityIds": [
+        "bruxelles",
+        "antwerpen",
+        "gent"
+      ]
+    },
+    {
+      "id": "HR",
+      "name": "Croatia",
+      "geo": {
+        "lon": 15.9,
+        "lat": 45.3
+      },
+      "workingPeople": 516680,
+      "cityIds": [
+        "zagreb",
+        "split",
+        "rijeka"
+      ]
+    },
+    {
+      "id": "CZ",
+      "name": "Czechia",
+      "geo": {
+        "lon": 15.5,
+        "lat": 49.8
+      },
+      "workingPeople": 1013374,
+      "cityIds": [
+        "praha",
+        "brno",
+        "ostrava"
+      ]
+    },
+    {
+      "id": "FR",
+      "name": "France",
+      "geo": {
+        "lon": 2.5,
+        "lat": 46.6
+      },
+      "workingPeople": 6202238,
+      "cityIds": [
+        "paris",
+        "lyon",
+        "marseille"
+      ]
+    },
+    {
+      "id": "DE",
+      "name": "Germany",
+      "geo": {
+        "lon": 10.4,
+        "lat": 51.1
+      },
+      "workingPeople": 3754000,
+      "cityIds": [
+        "berlin",
+        "hamburg",
+        "muenchen"
+      ]
+    },
+    {
+      "id": "HU",
+      "name": "Hungary",
+      "geo": {
+        "lon": 19.4,
+        "lat": 47.2
+      },
+      "workingPeople": 1067473,
+      "cityIds": [
+        "budapest",
+        "debrecen",
+        "szeged"
+      ]
+    },
+    {
+      "id": "IE",
+      "name": "Ireland",
+      "geo": {
+        "lon": -8,
+        "lat": 53.2
+      },
+      "workingPeople": 678300,
+      "cityIds": [
+        "dublin",
+        "cork",
+        "limerick"
+      ]
+    },
+    {
+      "id": "IT",
+      "name": "Italy",
+      "geo": {
+        "lon": 12.5,
+        "lat": 42.8
+      },
+      "workingPeople": 4019788,
+      "cityIds": [
+        "milano",
+        "roma",
+        "napoli"
+      ]
+    },
+    {
+      "id": "NL",
+      "name": "Netherlands",
+      "geo": {
+        "lon": 5.3,
+        "lat": 52.2
+      },
+      "workingPeople": 1227636,
+      "cityIds": [
+        "rotterdam",
+        "amsterdam"
+      ]
+    },
+    {
+      "id": "PL",
+      "name": "Poland",
+      "geo": {
+        "lon": 19.4,
+        "lat": 52
+      },
+      "workingPeople": 2239677,
+      "cityIds": [
+        "warszawa",
+        "krakow",
+        "lodz"
+      ]
+    },
+    {
+      "id": "PT",
+      "name": "Portugal",
+      "geo": {
+        "lon": -8.2,
+        "lat": 39.6
+      },
+      "workingPeople": 1301320,
+      "cityIds": [
+        "lisboa",
+        "porto"
+      ]
+    },
+    {
+      "id": "SK",
+      "name": "Slovakia",
+      "geo": {
+        "lon": 19.6,
+        "lat": 48.7
+      },
+      "workingPeople": 362713,
+      "cityIds": [
+        "bratislava",
+        "kosice",
+        "presov"
+      ]
+    },
+    {
+      "id": "SI",
+      "name": "Slovenia",
+      "geo": {
+        "lon": 14.8,
+        "lat": 46.1
+      },
+      "workingPeople": 186785,
+      "cityIds": [
+        "ljubljana",
+        "maribor"
+      ]
+    },
+    {
+      "id": "ES",
+      "name": "Spain",
+      "geo": {
+        "lon": -3.7,
+        "lat": 40.2
+      },
+      "workingPeople": 4400006,
+      "cityIds": [
+        "madrid",
+        "barcelona",
+        "valencia"
+      ]
+    },
+    {
+      "id": "CH",
+      "name": "Switzerland",
+      "geo": {
+        "lon": 8.2,
+        "lat": 46.8
+      },
+      "workingPeople": 772704.8,
+      "cityIds": [
+        "zurich",
+        "geneva",
+        "basel"
+      ]
+    },
+    {
+      "id": "UK",
+      "name": "United Kingdom",
+      "geo": {
+        "lon": -2.5,
+        "lat": 53.5
+      },
+      "workingPeople": 5368000,
+      "cityIds": [
+        "london",
+        "birmingham",
+        "glasgow"
+      ]
+    }
+  ],
+  "cities": [
+    {
+      "id": "amsterdam",
+      "name": "Amsterdam",
+      "country": "NL",
+      "workingPeople": 595153,
+      "commuterRate": 0.3239438882709183,
+      "maleShare": 0.5192026252072997,
+      "unemploymentRate": 4.75,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 190800,
+        "trade": 180100,
+        "business": 203400,
+        "industry": 28500
+      },
+      "biggestSector": "business",
+      "missing": [
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "antwerpen",
+      "name": "Antwerpen",
+      "country": "BE",
+      "workingPeople": 239150,
+      "commuterRate": null,
+      "maleShare": 0.5519381141542965,
+      "unemploymentRate": 7.36,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 82782,
+        "trade": 68980,
+        "business": 73700,
+        "industry": 30081
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "barcelona",
+      "name": "Barcelona",
+      "country": "ES",
+      "workingPeople": 1365546,
+      "commuterRate": null,
+      "maleShare": 0.5171286796636657,
+      "unemploymentRate": 7.92,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 27.18,
+      "sectors": {
+        "public": 339026,
+        "trade": 410218,
+        "business": 325050,
+        "industry": 72298
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate"
+      ]
+    },
+    {
+      "id": "basel",
+      "name": "Basel",
+      "country": "CH",
+      "workingPeople": 171555.54,
+      "commuterRate": 0.1695288914222982,
+      "maleShare": 0.5107445670364245,
+      "unemploymentRate": 6.21,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 33.14,
+      "sectors": {
+        "public": 78021,
+        "trade": 55236,
+        "business": 56139,
+        "industry": 38910
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "berlin",
+      "name": "Berlin",
+      "country": "DE",
+      "workingPeople": 1905000,
+      "commuterRate": 0.1543580009610764,
+      "maleShare": 0.5244094488188976,
+      "unemploymentRate": 6.88,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 32.5,
+      "sectors": {
+        "public": 514000,
+        "trade": 396000,
+        "business": 323000,
+        "industry": 184000
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "birmingham",
+      "name": "Birmingham",
+      "country": "UK",
+      "workingPeople": 498200,
+      "commuterRate": null,
+      "maleShare": 0.5586109995985548,
+      "unemploymentRate": 7.7,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 163100,
+        "trade": 128700,
+        "business": 97600,
+        "industry": 41813
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "bratislava",
+      "name": "Bratislava",
+      "country": "SK",
+      "workingPeople": 213664,
+      "commuterRate": 0.2650824652777778,
+      "maleShare": 0.504839373970346,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 23.5,
+      "sectors": {
+        "public": 129281,
+        "trade": 128423,
+        "business": 99735,
+        "industry": 55140
+      },
+      "biggestSector": "public",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "brno",
+      "name": "Brno",
+      "country": "CZ",
+      "workingPeople": 169359,
+      "commuterRate": null,
+      "maleShare": 0.5270581551492615,
+      "unemploymentRate": 9.37,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 36,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "bruxelles",
+      "name": "Bruxelles",
+      "country": "BE",
+      "workingPeople": 525329,
+      "commuterRate": null,
+      "maleShare": 0.5343584686929524,
+      "unemploymentRate": 11.72,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 265522,
+        "trade": 125504,
+        "business": 140822,
+        "industry": 26514
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "budapest",
+      "name": "Budapest",
+      "country": "HU",
+      "workingPeople": 891419,
+      "commuterRate": null,
+      "maleShare": 0.502241931123299,
+      "unemploymentRate": 1.85,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 271536,
+        "trade": 290631,
+        "business": 201886,
+        "industry": 123181
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "cork",
+      "name": "Cork",
+      "country": "IE",
+      "workingPeople": 51100,
+      "commuterRate": 0.5755559162473625,
+      "maleShare": 0.5538160469667319,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 20.4,
+      "sectors": {
+        "public": 26453,
+        "trade": 16826,
+        "business": 6677,
+        "industry": 7625
+      },
+      "biggestSector": "public",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "debrecen",
+      "name": "Debrecen",
+      "country": "HU",
+      "workingPeople": 97516,
+      "commuterRate": null,
+      "maleShare": 0.5098240288773125,
+      "unemploymentRate": 4.38,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 33189,
+        "trade": 29880,
+        "business": 13703,
+        "industry": 22305
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "dublin",
+      "name": "Dublin",
+      "country": "IE",
+      "workingPeople": 603600,
+      "commuterRate": 0.47580803403915467,
+      "maleShare": 0.5359509609012592,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 28.8,
+      "sectors": {
+        "public": 164183,
+        "trade": 149614,
+        "business": 70239,
+        "industry": 44987
+      },
+      "biggestSector": "public",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "geneva",
+      "name": "Geneva",
+      "country": "CH",
+      "workingPeople": 192366.67,
+      "commuterRate": 0.13649174269876965,
+      "maleShare": 0.5092795960963508,
+      "unemploymentRate": 13.21,
+      "unemploymentLevel": "high",
+      "commuteMinutes": 36.08,
+      "sectors": {
+        "public": 90408,
+        "trade": 75585,
+        "business": 69031,
+        "industry": 23705
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "gent",
+      "name": "Gent",
+      "country": "BE",
+      "workingPeople": 130238,
+      "commuterRate": null,
+      "maleShare": 0.5341144673597568,
+      "unemploymentRate": 5.36,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 71801,
+        "trade": 31370,
+        "business": 50145,
+        "industry": 31223
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "glasgow",
+      "name": "Glasgow",
+      "country": "UK",
+      "workingPeople": 288700,
+      "commuterRate": null,
+      "maleShare": 0.5181849670938691,
+      "unemploymentRate": 6.18,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 116400,
+        "trade": 95100,
+        "business": 90700,
+        "industry": 24192
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "graz",
+      "name": "Graz",
+      "country": "AT",
+      "workingPeople": 132609,
+      "commuterRate": null,
+      "maleShare": 0.5227774887074029,
+      "unemploymentRate": 8.98,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "commuteMinutes",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "hamburg",
+      "name": "Hamburg",
+      "country": "DE",
+      "workingPeople": 983000,
+      "commuterRate": 0.2780258823529412,
+      "maleShare": 0.5218718209562564,
+      "unemploymentRate": 5.76,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 30.1,
+      "sectors": {
+        "public": 260000,
+        "trade": 296000,
+        "business": 206000,
+        "industry": 174000
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "kosice",
+      "name": "Košice",
+      "country": "SK",
+      "workingPeople": 106260,
+      "commuterRate": 0.4752493699194207,
+      "maleShare": 0.5176265763222285,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 19.2,
+      "sectors": {
+        "public": 20254,
+        "trade": 25850,
+        "business": 13179,
+        "industry": 27152
+      },
+      "biggestSector": "industry",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "krakow",
+      "name": "Kraków",
+      "country": "PL",
+      "workingPeople": 525738,
+      "commuterRate": null,
+      "maleShare": null,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 91360,
+        "trade": 78808,
+        "business": 57806,
+        "industry": 45753
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "maleShare",
+        "unemploymentRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "limerick",
+      "name": "Limerick",
+      "country": "IE",
+      "workingPeople": 23600,
+      "commuterRate": 0.588123864383191,
+      "maleShare": 0.5508474576271186,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 19.7,
+      "sectors": {
+        "public": 9185,
+        "trade": 8202,
+        "business": 2905,
+        "industry": 1352
+      },
+      "biggestSector": "public",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "linz",
+      "name": "Linz",
+      "country": "AT",
+      "workingPeople": 95581,
+      "commuterRate": null,
+      "maleShare": 0.5224678544899091,
+      "unemploymentRate": 8.09,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "commuteMinutes",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "lisboa",
+      "name": "Lisboa",
+      "country": "PT",
+      "workingPeople": 855069,
+      "commuterRate": 0.5387884230929257,
+      "maleShare": 0.48469421765962745,
+      "unemploymentRate": 8.82,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 33.24,
+      "sectors": {
+        "public": 99847,
+        "trade": 376670,
+        "business": 349970,
+        "industry": 58638
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "ljubljana",
+      "name": "Ljubljana",
+      "country": "SI",
+      "workingPeople": 136856,
+      "commuterRate": null,
+      "maleShare": 0.5251212953761618,
+      "unemploymentRate": 5.5,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 30.36,
+      "sectors": {
+        "public": 65558,
+        "trade": 58180,
+        "business": 37568,
+        "industry": 26192
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate"
+      ]
+    },
+    {
+      "id": "london",
+      "name": "London",
+      "country": "UK",
+      "workingPeople": 4581100,
+      "commuterRate": null,
+      "maleShare": 0.5448909650520617,
+      "unemploymentRate": 4.97,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 1142800,
+        "trade": 1292500,
+        "business": 1318100,
+        "industry": 139400
+      },
+      "biggestSector": "business",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "lyon",
+      "name": "Lyon",
+      "country": "FR",
+      "workingPeople": 619804,
+      "commuterRate": 0.30295280167402927,
+      "maleShare": 0.5072490658337152,
+      "unemploymentRate": 12.03,
+      "unemploymentLevel": "high",
+      "commuteMinutes": 29,
+      "sectors": {
+        "public": 204137,
+        "trade": 143023,
+        "business": 125951,
+        "industry": 69281
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "madrid",
+      "name": "Madrid",
+      "country": "ES",
+      "workingPeople": 2308318,
+      "commuterRate": null,
+      "maleShare": 0.5014647028702285,
+      "unemploymentRate": 8.91,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 31.21,
+      "sectors": {
+        "public": 646812,
+        "trade": 775812,
+        "business": 714780,
+        "industry": 143118
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate"
+      ]
+    },
+    {
+      "id": "maribor",
+      "name": "Maribor",
+      "country": "SI",
+      "workingPeople": 49929,
+      "commuterRate": null,
+      "maleShare": 0.5605559895050972,
+      "unemploymentRate": 7.7,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 22.38,
+      "sectors": {
+        "public": 17316,
+        "trade": 12766,
+        "business": 9044,
+        "industry": 13269
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate"
+      ]
+    },
+    {
+      "id": "marseille",
+      "name": "Marseille",
+      "country": "FR",
+      "workingPeople": 409775,
+      "commuterRate": 0.2070969264350186,
+      "maleShare": 0.5070270270270271,
+      "unemploymentRate": 13.44,
+      "unemploymentLevel": "high",
+      "commuteMinutes": 35,
+      "sectors": {
+        "public": 156232,
+        "trade": 90858,
+        "business": 54663,
+        "industry": 22635
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "milano",
+      "name": "Milano",
+      "country": "IT",
+      "workingPeople": 1704212,
+      "commuterRate": 0.5869266211604096,
+      "maleShare": 0.5387803864777387,
+      "unemploymentRate": 5.6,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 34.8,
+      "sectors": {
+        "public": 161821,
+        "trade": 537922,
+        "business": 423508,
+        "industry": 258237
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "muenchen",
+      "name": "München",
+      "country": "DE",
+      "workingPeople": 866000,
+      "commuterRate": 0.3377590051457976,
+      "maleShare": 0.5184757505773672,
+      "unemploymentRate": 4.36,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 26.9,
+      "sectors": {
+        "public": 237000,
+        "trade": 198000,
+        "business": 191000,
+        "industry": 166000
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "napoli",
+      "name": "Napoli",
+      "country": "IT",
+      "workingPeople": 1076156,
+      "commuterRate": 0.71612559304867,
+      "maleShare": 0.6122950575938805,
+      "unemploymentRate": 13.4,
+      "unemploymentLevel": "high",
+      "commuteMinutes": 28.11,
+      "sectors": {
+        "public": 131779,
+        "trade": 261722,
+        "business": 104787,
+        "industry": 110510
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "ostrava",
+      "name": "Ostrava",
+      "country": "CZ",
+      "workingPeople": 120990,
+      "commuterRate": null,
+      "maleShare": 0.527921286148251,
+      "unemploymentRate": 12.85,
+      "unemploymentLevel": "high",
+      "commuteMinutes": 36,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "paris",
+      "name": "Paris",
+      "country": "FR",
+      "workingPeople": 5172659,
+      "commuterRate": 0.13629411917901235,
+      "maleShare": 0.5030969565169481,
+      "unemploymentRate": 11.36,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 44,
+      "sectors": {
+        "public": 1406531,
+        "trade": 1144379,
+        "business": 954931,
+        "industry": 330157
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "porto",
+      "name": "Porto",
+      "country": "PT",
+      "workingPeople": 446251,
+      "commuterRate": 0.5217814223798266,
+      "maleShare": 0.4924313895094913,
+      "unemploymentRate": 10.94,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 25.21,
+      "sectors": {
+        "public": 45458,
+        "trade": 159514,
+        "business": 122892,
+        "industry": 56061
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "praha",
+      "name": "Praha",
+      "country": "CZ",
+      "workingPeople": 723025,
+      "commuterRate": null,
+      "maleShare": 0.5481442550395906,
+      "unemploymentRate": 6.81,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 38,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "presov",
+      "name": "Prešov",
+      "country": "SK",
+      "workingPeople": 42789,
+      "commuterRate": 0.7175167644103834,
+      "maleShare": 0.522844656336909,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": 19.2,
+      "sectors": {
+        "public": 8807,
+        "trade": 11917,
+        "business": 3778,
+        "industry": 10702
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "unemploymentRate"
+      ]
+    },
+    {
+      "id": "rijeka",
+      "name": "Rijeka",
+      "country": "HR",
+      "workingPeople": 54985,
+      "commuterRate": null,
+      "maleShare": 0.5148495044102938,
+      "unemploymentRate": 4.7,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 14710,
+        "trade": 17553,
+        "business": 8040,
+        "industry": 6630
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "roma",
+      "name": "Roma",
+      "country": "IT",
+      "workingPeople": 1239420,
+      "commuterRate": 0.2230274896478976,
+      "maleShare": 0.5219594649110068,
+      "unemploymentRate": 8.38,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": 44.74,
+      "sectors": {
+        "public": 182970,
+        "trade": 360421,
+        "business": 267238,
+        "industry": 65912
+      },
+      "biggestSector": "trade",
+      "missing": []
+    },
+    {
+      "id": "rotterdam",
+      "name": "Rotterdam",
+      "country": "NL",
+      "workingPeople": 632483,
+      "commuterRate": 0.2950809248554913,
+      "maleShare": 0.5238464907357194,
+      "unemploymentRate": 4.6,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 211600,
+        "trade": 190600,
+        "business": 135800,
+        "industry": 47800
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "split",
+      "name": "Split",
+      "country": "HR",
+      "workingPeople": 83975,
+      "commuterRate": null,
+      "maleShare": 0.5127716582316165,
+      "unemploymentRate": 7.87,
+      "unemploymentLevel": "medium",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 20840,
+        "trade": 24961,
+        "business": 10509,
+        "industry": 8646
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "szeged",
+      "name": "Szeged",
+      "country": "HU",
+      "workingPeople": 78538,
+      "commuterRate": null,
+      "maleShare": 0.5039471338715017,
+      "unemploymentRate": 1.83,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 25938,
+        "trade": 23802,
+        "business": 10609,
+        "industry": 13576
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "valencia",
+      "name": "Valencia",
+      "country": "ES",
+      "workingPeople": 726142,
+      "commuterRate": null,
+      "maleShare": 0.5136295655670654,
+      "unemploymentRate": 12.16,
+      "unemploymentLevel": "high",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 231133,
+        "trade": 198993,
+        "business": 107243,
+        "industry": 44705
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "warszawa",
+      "name": "Warszawa",
+      "country": "PL",
+      "workingPeople": 1381473,
+      "commuterRate": null,
+      "maleShare": null,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 211925,
+        "trade": 237902,
+        "business": 157694,
+        "industry": 84567
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate",
+        "maleShare",
+        "unemploymentRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "wien",
+      "name": "Wien",
+      "country": "AT",
+      "workingPeople": 868199,
+      "commuterRate": null,
+      "maleShare": 0.5178190714340837,
+      "unemploymentRate": 12.27,
+      "unemploymentLevel": "high",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": null,
+        "trade": null,
+        "business": null,
+        "industry": null
+      },
+      "biggestSector": null,
+      "missing": [
+        "commuterRate",
+        "commuteMinutes",
+        "biggestSector"
+      ]
+    },
+    {
+      "id": "zagreb",
+      "name": "Zagreb",
+      "country": "HR",
+      "workingPeople": 377720,
+      "commuterRate": null,
+      "maleShare": 0.4924256062691941,
+      "unemploymentRate": 2.83,
+      "unemploymentLevel": "low",
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 153391,
+        "trade": 170092,
+        "business": 87769,
+        "industry": 79127
+      },
+      "biggestSector": "trade",
+      "missing": [
+        "commuterRate",
+        "commuteMinutes"
+      ]
+    },
+    {
+      "id": "zurich",
+      "name": "Zurich",
+      "country": "CH",
+      "workingPeople": 408782.59,
+      "commuterRate": 0.31980692290341983,
+      "maleShare": 0.529471619620591,
+      "unemploymentRate": 6.15,
+      "unemploymentLevel": "low",
+      "commuteMinutes": 39.9,
+      "sectors": {
+        "public": 178490,
+        "trade": 137955,
+        "business": 175683,
+        "industry": 31816
+      },
+      "biggestSector": "public",
+      "missing": []
+    },
+    {
+      "id": "lodz",
+      "name": "Łódź",
+      "country": "PL",
+      "workingPeople": 332466,
+      "commuterRate": null,
+      "maleShare": null,
+      "unemploymentRate": null,
+      "unemploymentLevel": null,
+      "commuteMinutes": null,
+      "sectors": {
+        "public": 62786,
+        "trade": 54743,
+        "business": 33232,
+        "industry": 55527
+      },
+      "biggestSector": "public",
+      "missing": [
+        "commuterRate",
+        "maleShare",
+        "unemploymentRate",
+        "commuteMinutes"
+      ]
+    }
+  ]
+}

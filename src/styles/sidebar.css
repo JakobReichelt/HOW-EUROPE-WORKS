@@ -1,0 +1,372 @@
+/* Strip + sidebar (Figma 332:836, 347:6230, 288:10567). */
+
+/* ---- 24px strip with vertical text ---- */
+
+.sidebar-strip {
+  flex: none;
+  width: var(--strip-width);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pad);
+  padding: var(--pad) 0;
+  border-right: var(--line);
+  background: var(--c-paper);
+}
+
+.sidebar-strip--intro {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.sidebar-strip__title,
+.sidebar-strip__mode,
+.sidebar-strip__label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+
+.sidebar-strip__title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.sidebar-strip__mode {
+  font-style: italic;
+  color: var(--c-muted);
+}
+
+/* ---- sidebar shell ---- */
+
+.sidebar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(var(--strip-width) + var(--panel-width));
+  display: flex;
+  background: var(--c-paper);
+}
+
+.sidebar--legend-locked {
+  pointer-events: none;
+}
+
+/*
+ * Right border sits on the panel edge. Interaction marks are centred on it and hang
+ * into the canvas: the scroller grows by --mark-bleed, then a negative margin keeps
+ * the sidebar width, and that bleed stays transparent so there is no paper stripe.
+ * The marks stay inside the padding edge, which is what a vertical scroller can show.
+ */
+.panel {
+  flex: none;
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  border-right: var(--line);
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.sidebar[data-panel='interaction'] #panel-interaction {
+  width: calc(var(--panel-width) + var(--mark-bleed));
+  margin-right: calc(-1 * var(--mark-bleed));
+  padding-right: var(--mark-bleed);
+  border-right: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--c-ink), var(--c-ink)), linear-gradient(var(--c-paper), var(--c-paper));
+  background-size:
+    1px 100%,
+    var(--panel-width) 100%;
+  background-position:
+    right var(--mark-bleed) top,
+    left top;
+  background-repeat: no-repeat;
+}
+
+.sidebar[data-panel='interaction'] #panel-interaction > * {
+  pointer-events: auto;
+}
+
+.panel-header {
+  flex: none;
+  min-height: var(--header-height);
+  display: flex;
+  align-items: flex-start;
+  padding: var(--pad);
+  border-bottom: var(--line);
+  overflow: visible;
+}
+
+.panel-header__title {
+  margin: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
+  font-weight: 700;
+}
+
+.panel-header--title {
+  height: auto;
+}
+
+.panel-header__big {
+  margin: 0;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: var(--fs-title);
+  line-height: var(--lh-title);
+  font-weight: 700;
+  letter-spacing: -0.76px;
+}
+
+.panel-header__big > span {
+  display: block;
+}
+
+.panel-row {
+  position: relative;
+  flex: none;
+  display: block;
+  width: 100%;
+  padding: var(--pad);
+  border-bottom: var(--line);
+}
+
+.panel-section {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: var(--pad);
+  border-bottom: var(--line);
+}
+
+.panel-section .panel-row {
+  margin: calc(-1 * var(--pad));
+  width: calc(100% + 2 * var(--pad));
+  border-bottom: 0;
+}
+
+.panel-section .accordion__body {
+  margin: var(--pad) 0 0;
+}
+
+.panel-section--grow {
+  flex: 1 0 auto;
+  border-bottom: 0;
+}
+
+.panel-section__title {
+  position: relative;
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.sector-all {
+  display: block;
+  width: 100%;
+}
+
+.sector-all.is-dimmed {
+  color: var(--c-muted);
+}
+
+.panel-toggle[aria-pressed='true'],
+.accordion__toggle[aria-expanded='true'] {
+  font-weight: 700;
+}
+
+.accordion__body {
+  color: var(--c-muted-dark);
+}
+
+/* ---- marks on the panel edge ---- */
+
+.edge-mark {
+  position: absolute;
+  top: 50%;
+  right: calc(-1 * var(--pad) + 0.5px);
+  width: var(--mark);
+  height: var(--mark);
+  border-radius: 50%;
+  transform: translate(50%, -50%);
+  pointer-events: none;
+}
+
+.panel-row > .edge-mark {
+  right: 0.5px;
+}
+
+.edge-mark--ring {
+  display: none;
+  width: 12px;
+  height: 12px;
+  border: var(--line);
+  background: var(--c-paper);
+}
+
+.panel-toggle[aria-pressed='true'] .edge-mark--ring {
+  display: block;
+}
+
+.edge-mark--sectors {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: var(--line);
+  background: conic-gradient(
+    var(--c-public) 0 25%,
+    var(--c-trade) 0 50%,
+    var(--c-business) 0 75%,
+    var(--c-industry) 0
+  );
+}
+
+.sector-all[aria-pressed='true'] .edge-mark--sectors {
+  display: block;
+}
+
+.edge-mark--dot {
+  display: none;
+  border: var(--line);
+}
+
+/* ---- sectors ---- */
+
+.sector-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.sector {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: calc(var(--lh-xs) * 2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+}
+
+.sector.is-dimmed {
+  color: var(--c-muted);
+}
+
+.sector.is-only {
+  font-weight: 700;
+}
+
+.sector:hover,
+.sector:focus-visible {
+  color: var(--c-ink);
+  font-weight: 700;
+}
+
+.sector[aria-pressed='true'] .edge-mark--dot,
+.sector:hover .edge-mark--dot,
+.sector:focus-visible .edge-mark--dot {
+  display: block;
+}
+
+.sector:not([aria-pressed='true']):hover .edge-mark--dot,
+.sector:not([aria-pressed='true']):focus-visible .edge-mark--dot {
+  background: var(--c-paper);
+}
+
+/* ---- countries ---- */
+
+.country-search {
+  width: 100%;
+  padding: 2px 4px 2px 20px;
+  font: inherit;
+  border: 0;
+  background: var(--c-field)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23808080' stroke-width='1.5'%3E%3Ccircle cx='5' cy='5' r='4'/%3E%3Cpath d='m8 8 3.5 3.5'/%3E%3C/svg%3E")
+    no-repeat 4px center;
+}
+
+.country-search::placeholder {
+  color: var(--c-muted-dark);
+}
+
+.clear-selection {
+  width: 100%;
+  color: var(--c-muted-dark);
+  text-align: left;
+}
+
+.clear-selection:not([hidden]) {
+  margin-bottom: 8px;
+}
+
+.country-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.country {
+  position: relative;
+  width: 100%;
+}
+
+.country.is-selected {
+  font-weight: 700;
+}
+
+.country:hover,
+.country:focus-visible {
+  font-weight: 700;
+}
+
+.country.is-selected .edge-mark--dot {
+  display: block;
+  background: var(--c-ink);
+}
+
+.country:hover .edge-mark--dot,
+.country:focus-visible .edge-mark--dot {
+  display: block;
+  background: var(--c-paper);
+  border: var(--line);
+}
+
+.country-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.country-group + .country-group {
+  margin-top: 14px;
+}
+
+.country-group__cities {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.country-list__divider {
+  width: 93px;
+  margin: 6px 0;
+  border-top: var(--line);
+}
