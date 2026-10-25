@@ -67,10 +67,16 @@ describe('worldLayout', () => {
     expect(worldLayout(dataset.countries, dataset.cities)).toEqual(nodes);
   });
 
-  it('maps the smallest and largest country to the Figma radius range', () => {
+  it('keeps the smallest country at minRadius and scales others by sqrt of headcount', () => {
     const radius = radiusScale(dataset.countries);
     const people = dataset.countries.map((c) => c.workingPeople);
-    expect(radius(Math.min(...people))).toBeCloseTo(theme.world.minRadius);
-    expect(radius(Math.max(...people))).toBeCloseTo(theme.world.maxRadius);
+    const lo = Math.min(...people);
+    const hi = Math.max(...people);
+    expect(radius(lo)).toBeCloseTo(theme.world.minRadius);
+    expect(radius(hi)).toBeCloseTo(theme.world.minRadius * Math.sqrt(hi / lo));
+    for (const country of dataset.countries) {
+      const expected = theme.world.minRadius * Math.sqrt(country.workingPeople / lo);
+      expect(radius(country.workingPeople)).toBeCloseTo(expected);
+    }
   });
 });

@@ -12,7 +12,9 @@ import {
   hemisphereDir,
   placeLegendSnippets,
   quarterOf,
+  reverseStaircase,
   textAtTip,
+  tipAway,
 } from '../src/canvas/layout/legendLayout';
 import { polar, type Rect } from '../src/canvas/geometry';
 
@@ -92,6 +94,43 @@ function ringMarks(base: number, step: number) {
   ];
 }
 
+/** Near edge of each label box must sit past the arc tip (no strikethrough). */
+function labelsPastTips(
+  direction: 1 | -1,
+  placed: ReturnType<typeof placeLegendSnippets>,
+): boolean {
+  const fontH = theme.font.xs;
+  const pad = L.labelPad;
+  return placed.every((item) => {
+    const tipAng = direction > 0 ? item.a1 : item.a0;
+    const tip = polar(center.x, center.y, item.r, tipAng);
+    const away = tipAway(tipAng, direction);
+    const w = width(item.text);
+    // Near edge of the AABB along -away (toward the tip).
+    const corners =
+      item.align === 'left'
+        ? [
+            { x: item.at.x, y: item.at.y - fontH / 2 },
+            { x: item.at.x, y: item.at.y + fontH / 2 },
+          ]
+        : item.align === 'right'
+          ? [
+              { x: item.at.x, y: item.at.y - fontH / 2 },
+              { x: item.at.x, y: item.at.y + fontH / 2 },
+            ]
+          : [
+              { x: item.at.x - w / 2, y: item.at.y - fontH / 2 },
+              { x: item.at.x + w / 2, y: item.at.y - fontH / 2 },
+              { x: item.at.x - w / 2, y: item.at.y + fontH / 2 },
+              { x: item.at.x + w / 2, y: item.at.y + fontH / 2 },
+            ];
+    const nearest = Math.min(
+      ...corners.map((c) => (c.x - tip.x) * away.x + (c.y - tip.y) * away.y),
+    );
+    return nearest >= pad * 0.85;
+  });
+}
+
 describe('clock / hemisphere rules', () => {
   it("maps math angles to clock angles (0 at 12 o'clock, CW)", () => {
     expect(clockAngle(-Math.PI / 2)).toBeCloseTo(0, 5);
@@ -101,13 +140,9 @@ describe('clock / hemisphere rules', () => {
   });
 
   it('picks CW on the right half and CCW on the left half', () => {
-    // Top-right (math -PI/4) -> clock ~PI/4 -> right -> CW
     expect(hemisphereDir(-Math.PI / 4)).toBe(1);
-    // Bottom-right (math PI/4) -> clock ~3PI/4 -> right -> CW
     expect(hemisphereDir(Math.PI / 4)).toBe(1);
-    // Bottom-left (math 3PI/4) -> clock ~5PI/4 -> left -> CCW
     expect(hemisphereDir((3 * Math.PI) / 4)).toBe(-1);
-    // Top-left (math -3PI/4) -> clock ~7PI/4 -> left -> CCW
     expect(hemisphereDir((-3 * Math.PI) / 4)).toBe(-1);
   });
 
@@ -117,84 +152,108 @@ describe('clock / hemisphere rules', () => {
     expect(quarterOf(Math.PI / 2)).toBe('bottom');
     expect(quarterOf(Math.PI)).toBe('left');
   });
+
+  it('reverses staircase only for left-of-segment fans in the top/left quarter', () => {
+    // Top, CCW into left open space.
+    expect(reverseStaircase(-Math.PI / 2, -1)).toBe(true);
+    // Left, CCW.
+    expect(reverseStaircase(Math.PI, -1)).toBe(true);
+    // Top, CW into right open space -> not reversed.
+    expect(reverseStaircase(-Math.PI / 2, 1)).toBe(false);
+    // Right, CW -> not reversed.
+    expect(reverseStaircase(0, 1)).toBe(false);
+    // Bottom, CCW -> not reversed (not top/left quarter).
+    expect(reverseStaircase(Math.PI / 2, -1)).toBe(false);
+  });
 });
 
 describe('text at tip', () => {
-  it('grows into the callout tangent (left open space -> right-align)', () => {
-    // Upper-left, shooting CCW: open space is further left.
+  const fontH = theme.font.xs;
+
+  it('anchors past the tip so middle-baseline glyphs clear the stroke', () => {
     const leftAng = Math.PI + 0.4;
     const leftTip = polar(center.x, center.y, 200, leftAng);
-    const left = textAtTip(center, leftAng, leftTip, 8, -1);
+    const left = textAtTip(leftAng, leftTip, L.labelPad, fontH, 52, -1);
     expect(left.align).toBe('right');
     expect(left.at.x).toBeLessThan(leftTip.x);
+    const awayL = tipAway(leftAng, -1);
+    const alongL = (left.at.x - leftTip.x) * awayL.x + (left.at.y - leftTip.y) * awayL.y;
+    expect(alongL).toBeGreaterThanOrEqual(L.labelPad + fontH / 2 - 1e-6);
 
-    // Upper-right, shooting CW: open space is further right (Marseille commute).
     const rightAng = -0.5;
     const rightTip = polar(center.x, center.y, 200, rightAng);
-    const right = textAtTip(center, rightAng, rightTip, 8, 1);
+    const right = textAtTip(rightAng, rightTip, L.labelPad, fontH, 42, 1);
     expect(right.align).toBe('left');
     expect(right.at.x).toBeGreaterThan(rightTip.x);
   });
 
   it("right-aligns Marseille-style tips near 12 o'clock when shooting CCW", () => {
-    // Tip still in the clock "right" half, but CCW open space is to the left.
     const tipAng = -1.1;
     const tip = polar(center.x, center.y, 300, tipAng);
     expect(clockAngle(tipAng)).toBeLessThan(Math.PI / 2);
-    const placed = textAtTip(center, tipAng, tip, 8, -1);
+    const placed = textAtTip(tipAng, tip, L.labelPad, fontH, 28, -1);
     expect(placed.align).toBe('right');
   });
 
-  it('centers above the top peak and below the bottom peak', () => {
+  it('centers at peaks with enough travel that half the string clears the tip', () => {
     const topTip = polar(center.x, center.y, 200, -Math.PI / 2);
-    const top = textAtTip(center, -Math.PI / 2, topTip, 8, -1);
+    const w = 52;
+    const top = textAtTip(-Math.PI / 2, topTip, L.labelPad, fontH, w, -1);
     expect(top.align).toBe('center');
-    expect(top.at.y).toBeLessThan(topTip.y);
-
-    const bottomTip = polar(center.x, center.y, 200, Math.PI / 2);
-    const bottom = textAtTip(center, Math.PI / 2, bottomTip, 8, 1);
-    expect(bottom.align).toBe('center');
-    expect(bottom.at.y).toBeGreaterThan(bottomTip.y);
+    expect(top.at.x).toBeLessThan(topTip.x);
+    const away = tipAway(-Math.PI / 2, -1);
+    const along = (top.at.x - topTip.x) * away.x + (top.at.y - topTip.y) * away.y;
+    expect(along).toBeGreaterThanOrEqual(L.labelPad + fontH / 2 + w / 2 - 1e-6);
   });
 });
 
 describe('legend staircase placement', () => {
-  it('makes outer rings longer in pixels than inner rings in every quarter', () => {
+  it('uses outer-long staircase when not in the top-left left-of-segment case', () => {
     const marks = ringMarks(180, 14);
-    const nears = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
-    for (const near of nears) {
-      for (const direction of [1, -1] as const) {
-        const placed = place(near, direction, marks);
-        const byR = [...placed].sort((a, b) => a.r - b.r);
-        for (let i = 1; i < byR.length; i++) {
-          expect(byR[i]!.pixelLength).toBeGreaterThan(byR[i - 1]!.pixelLength);
-        }
+    // Right edge CW, bottom edge CW: never reversed.
+    for (const near of [0, Math.PI / 2] as const) {
+      const placed = place(near, 1, marks);
+      const byR = [...placed].sort((a, b) => a.r - b.r);
+      for (let i = 1; i < byR.length; i++) {
+        expect(byR[i]!.pixelLength).toBeGreaterThan(byR[i - 1]!.pixelLength);
       }
     }
+  });
+
+  it('reverses to inner-long when left of the segment at the top', () => {
+    const marks = ringMarks(180, 14);
+    const near = -Math.PI / 2;
+    expect(reverseStaircase(near, -1)).toBe(true);
+    const placed = place(near, -1, marks);
+    const byR = [...placed].sort((a, b) => a.r - b.r);
+    for (let i = 1; i < byR.length; i++) {
+      expect(byR[i]!.pixelLength).toBeLessThan(byR[i - 1]!.pixelLength);
+    }
+    expect(anyOverlap(boxesOf(placed))).toBe(false);
+    expect(labelsPastTips(-1, placed)).toBe(true);
   });
 
   it('keeps label boxes clear with a long active string', () => {
     const R = 300;
     const baseline = R * theme.donut.baseline;
-    const placed = place(-0.55, 1, [
+    const near = -0.55;
+    const placed = place(near, 1, [
       { r: baseline, text: 'no data' },
       { r: baseline + R * 0.09, text: '30 min way to work' },
       { r: baseline + R * 0.18, text: '40 min' },
       { r: baseline + R * 0.27, text: '50 min' },
     ]);
     expect(anyOverlap(boxesOf(placed))).toBe(false);
-    const byR = [...placed].sort((a, b) => a.r - b.r);
-    for (let i = 1; i < byR.length; i++) {
-      expect(byR[i]!.pixelLength).toBeGreaterThan(byR[i - 1]!.pixelLength);
-    }
+    expect(labelsPastTips(1, placed)).toBe(true);
   });
 
-  it('keeps tight unemployment marks clear', () => {
+  it('keeps tight unemployment marks clear and past their tips', () => {
     const R = 220;
     const marks = ringMarks(R * 0.66, R * theme.donut.shadowStep);
     for (const near of [Math.PI / 2, Math.PI, -2.2]) {
       const placed = place(near, -1, marks);
       expect(anyOverlap(boxesOf(placed))).toBe(false);
+      expect(labelsPastTips(-1, placed)).toBe(true);
     }
   });
 
@@ -211,36 +270,43 @@ describe('legend staircase placement', () => {
     }
   });
 
-  it('places Marseille callouts without overlap and outer-long', () => {
+  it('reverses Lyon unemployment (top-left) and keeps commute outer-long', () => {
     const cities = dataset.cities.filter((city) => city.country === 'FR');
     const R = selectionRadius(900, true);
     const g = donutLayout([{ countryId: 'FR', cities }], { cx: center.x, cy: center.y, R });
-    const seg = g.segments.find((s) => s.cityId === 'marseille');
+    const seg = g.segments.find((s) => s.cityId === 'lyon');
     expect(seg).toBeTruthy();
-    // Marseille sits just east of 12 o'clock -> right hemisphere -> CW preferred.
-    expect(hemisphereDir((seg!.a0 + seg!.a1) / 2)).toBe(1);
+
+    const unempNear = seg!.a0 - theme.donut.gap;
+    expect(reverseStaircase(unempNear, -1)).toBe(true);
 
     const step = g.R * theme.donut.shadowStep;
-    const unemployment = place(seg!.a0 - theme.donut.gap, -1, [
+    const unemployment = place(unempNear, -1, [
       { r: seg!.r1, text: LEGEND.noData },
       { r: seg!.r1 + step * UNEMPLOYMENT_STEPS.low, text: formatRate(5) },
       { r: seg!.r1 + step * UNEMPLOYMENT_STEPS.medium, text: formatRate(9) },
       { r: seg!.r1 + step * UNEMPLOYMENT_STEPS.high, text: formatRate(13) },
     ]);
-    const commute = place(seg!.a1 + theme.donut.gap, 1, [
+    const commuteNear = seg!.a1 + theme.donut.gap;
+    const commute = place(commuteNear, 1, [
       { r: commuteRadius(g.R, null), text: LEGEND.noData },
       { r: g.guides[0]!.r, text: '30 min way to work' },
       { r: g.guides[1]!.r, text: '40 min' },
       { r: g.guides[2]!.r, text: '50 min' },
     ]);
+
+    const unempByR = [...unemployment].sort((a, b) => a.r - b.r);
+    for (let i = 1; i < unempByR.length; i++) {
+      expect(unempByR[i]!.pixelLength).toBeLessThan(unempByR[i - 1]!.pixelLength);
+    }
+    const commuteByR = [...commute].sort((a, b) => a.r - b.r);
+    for (let i = 1; i < commuteByR.length; i++) {
+      expect(commuteByR[i]!.pixelLength).toBeGreaterThan(commuteByR[i - 1]!.pixelLength);
+    }
     expect(anyOverlap(boxesOf(unemployment))).toBe(false);
     expect(anyOverlap(boxesOf(commute))).toBe(false);
-    for (const side of [unemployment, commute]) {
-      const byR = [...side].sort((a, b) => a.r - b.r);
-      for (let i = 1; i < byR.length; i++) {
-        expect(byR[i]!.pixelLength).toBeGreaterThan(byR[i - 1]!.pixelLength);
-      }
-    }
+    expect(labelsPastTips(-1, unemployment)).toBe(true);
+    expect(labelsPastTips(1, commute)).toBe(true);
   });
 
   it('stays clear for every Austria city on a focus donut', () => {
@@ -249,18 +315,22 @@ describe('legend staircase placement', () => {
     const g = donutLayout([{ countryId: 'AT', cities }], { cx: 600, cy: 480, R });
     for (const seg of g.segments) {
       const step = g.R * theme.donut.shadowStep;
-      const unemployment = place(seg.a0 - theme.donut.gap, -1, [
+      const unempNear = seg.a0 - theme.donut.gap;
+      const unemployment = place(unempNear, -1, [
         { r: seg.r1, text: LEGEND.noData },
         { r: seg.r1 + step * UNEMPLOYMENT_STEPS.low, text: formatRate(5) },
         { r: seg.r1 + step * UNEMPLOYMENT_STEPS.medium, text: formatRate(9) },
         { r: seg.r1 + step * UNEMPLOYMENT_STEPS.high, text: formatRate(13) },
       ]);
-      const commute = place(seg.a1 + theme.donut.gap, 1, [
+      const commuteNear = seg.a1 + theme.donut.gap;
+      const commute = place(commuteNear, 1, [
         { r: commuteRadius(g.R, null), text: LEGEND.noData },
         ...g.guides.map((guide) => ({ r: guide.r, text: `${guide.minutes} min` })),
       ]);
       expect(anyOverlap(boxesOf(unemployment))).toBe(false);
       expect(anyOverlap(boxesOf(commute))).toBe(false);
+      expect(labelsPastTips(-1, unemployment)).toBe(true);
+      expect(labelsPastTips(1, commute)).toBe(true);
     }
   });
 });

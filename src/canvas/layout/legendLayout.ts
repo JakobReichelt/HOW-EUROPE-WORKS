@@ -9,25 +9,24 @@
  * Unemployment anchors at a0; commute at a1 (data encoding). Preferred travel:
  *   +1 = CW on screen (increasing math angle)
  *   -1 = CCW on screen (decreasing math angle)
- * Hemisphere of the segment midpoint sets the natural default:
- *   right half (clock 0..180) -> CW from a1
- *   left half  (clock 180..360) -> CCW from a0
- * Callers pass that preferred dir; a clearance flip can invert it.
  *
  * Staircase
  * ---------
- * Outermost ring longest, innermost shortest (pixel arc length).
+ * Default: outermost ring longest, innermost shortest (pixel arc length).
+ * Top-left exception: when the callout sits on the LEFT of the segment in the
+ * top or left quarter, reverse that -- longest inside, shortest outside -- so
+ * long strokes do not sweep through outer labels.
  *
  * Text at each line tip (horizontal, never upside-down)
  * ----------------------------------------------------
- *   tip left of centre  -> align right,  nudge left
- *   tip right of centre -> align left,   nudge right
- *   tip near 12 o'clock -> align center, nudge up
- *   tip near 6 o'clock  -> align center, nudge down
+ * Anchor is past the tip along the callout tangent by pad + fontH/2 (middle
+ * baseline must not reach back onto the stroke). Peaks use center align with
+ * an extra half text-width. Elsewhere: left open space -> right-align, right
+ * open space -> left-align.
  *
  * Collision
  * ---------
- * Lengthen arcs in steps until label AABBs no longer overlap (outer stays longest).
+ * Lengthen arcs until label AABBs clear, keeping the staircase order.
  */
 import { theme } from '../../config/theme';
 import { normalizeAngle, polar, type Point, type Rect } from '../geometry';
@@ -64,6 +63,8 @@ export interface CalloutContext {
   side: SegmentSide;
   align: TextAlign;
   away: Point;
+  /** Longest inside / shortest outside (top-left, left-of-segment). */
+  reverseStaircase: boolean;
 }
 
 /**
@@ -87,16 +88,29 @@ export function quarterOf(mathAngle: number): CircleQuarter {
   return 'left';
 }
 
+/**
+ * Top or left quarter with the fan on the left of the segment -> reverse
+ * staircase (shortest outside, longest inside).
+ */
+export function reverseStaircase(near: number, direction: 1 | -1): boolean {
+  const q = quarterOf(near);
+  if (q !== 'top' && q !== 'left') return false;
+  const away = tipAway(near, direction);
+  // Leftward open space, or vertical at 9 o'clock while shooting CCW.
+  return away.x < 0 || (direction < 0 && Math.abs(away.x) < 1e-9);
+}
+
 /** Preferred callout context at an anchor before the tip is known. */
 export function calloutContext(near: number, direction: 1 | -1): CalloutContext {
   const tip = near + direction * 0.01;
-  const place = textAtTip({ x: 0, y: 0 }, tip, polar(0, 0, 1, tip), 0, direction);
+  const place = textAtTip(tip, polar(0, 0, 1, tip), 0, theme.font.xs, 0, direction);
   const away = tipAway(near, direction);
   return {
     quarter: quarterOf(tip),
     side: away.x < 0 ? 'left' : 'right',
     align: place.align,
     away,
+    reverseStaircase: reverseStaircase(near, direction),
   };
 }
 
@@ -114,24 +128,93 @@ export function placeLegendSnippets(
   if (marks.length === 0) return [];
 
   const byRadius = [...marks].sort((a, b) => a.r - b.r);
+  const n = byRadius.length;
+  const reversed = reverseStaircase(near, direction);
   const snippet = L.snippet * sizeScale;
   const lengthStep = L.lengthStep * sizeScale;
   const fontH = theme.font.xs * sizeScale;
   const pad = L.labelPad * sizeScale;
   const gap = L.labelGap * sizeScale;
   const growPx = Math.max(2, L.growStep * sizeScale);
-
-  // Base staircase: outer longest in screen pixels along the arc. Also keep a
-  // minimum tip-to-tip travel so tight rings (unemployment steps) cannot stack
-  // labels on top of each other near 12 o'clock.
   const minTipPx = fontH + gap;
+
+  // i = 0 innermost. Default: outer long. Top-left left-of-segment: inner long.
   const spans = byRadius.map((mark, i) => {
     const r = Math.max(mark.r, 1);
-    let pixels = snippet + i * lengthStep;
+    const step = reversed ? n - 1 - i : i;
+    let pixels = snippet + step * lengthStep;
     const extend = Math.min(pixels / r, L.maxArc);
     pixels = extend * r;
     return { mark, r, pixels, extend };
   });
+  enforceStaircase(spans, reversed, lengthStep, minTipPx);
+
+  // Place in tip order (near -> far) so collision grows the fan outward.
+  const order = spans
+    .map((span, index) => ({ span, index }))
+    .sort((a, b) => a.span.extend - b.span.extend);
+
+  const placed: (LegendSnippetPlace | null)[] = Array.from({ length: n }, () => null);
+  const boxes: Rect[] = [];
+
+  for (const { span, index } of order) {
+    let candidate = placeOne(center, near, direction, span, pad, fontH);
+
+    while (boxes.some((box) => overlaps(box, candidate.box, gap)) && span.extend < L.resolveArc) {
+      span.pixels = Math.min(span.pixels + growPx, L.resolveArc * span.r);
+      span.extend = span.pixels / span.r;
+      enforceStaircase(spans, reversed, lengthStep, minTipPx);
+      candidate = placeOne(center, near, direction, span, pad, fontH);
+    }
+
+    placed[index] = candidate.place;
+    boxes.push(candidate.box);
+  }
+
+  return placed.filter((p): p is LegendSnippetPlace => p !== null);
+}
+
+/** Keep pixel staircase + minimum tip separation. */
+function enforceStaircase(
+  spans: { r: number; pixels: number; extend: number }[],
+  reversed: boolean,
+  lengthStep: number,
+  minTipPx: number,
+): void {
+  if (reversed) {
+    // Inner (low i) must stay longer than outer (high i).
+    for (let i = spans.length - 2; i >= 0; i--) {
+      const outer = spans[i + 1]!;
+      const inner = spans[i]!;
+      if (inner.pixels <= outer.pixels) {
+        inner.pixels = Math.min(outer.pixels + lengthStep, L.resolveArc * inner.r);
+        inner.extend = inner.pixels / inner.r;
+      }
+    }
+    // Tip travel: outer tips closer to the segment than inner tips.
+    let prevExtend = 0;
+    const byExtend = [...spans].sort((a, b) => a.extend - b.extend);
+    for (const cur of byExtend) {
+      const floor = prevExtend + minTipPx / cur.r;
+      if (cur.extend < floor) {
+        cur.extend = Math.min(floor, L.resolveArc);
+        cur.pixels = cur.extend * cur.r;
+      }
+      prevExtend = cur.extend;
+    }
+    // Re-assert inner-long after tip floors (outer may have been pushed).
+    for (let i = spans.length - 2; i >= 0; i--) {
+      const outer = spans[i + 1]!;
+      const inner = spans[i]!;
+      if (inner.pixels <= outer.pixels) {
+        inner.pixels = Math.min(outer.pixels + lengthStep, L.resolveArc * inner.r);
+        inner.extend = inner.pixels / inner.r;
+      }
+    }
+    return;
+  }
+
+  // Default: outer long.
   let prevExtend = 0;
   for (let i = 0; i < spans.length; i++) {
     const cur = spans[i]!;
@@ -148,38 +231,6 @@ export function placeLegendSnippets(
     }
     prevExtend = cur.extend;
   }
-
-  const placed: LegendSnippetPlace[] = [];
-  const boxes: Rect[] = [];
-
-  for (let i = 0; i < spans.length; i++) {
-    const span = spans[i]!;
-    let candidate = placeOne(center, near, direction, span, pad, fontH);
-
-    while (boxes.some((box) => overlaps(box, candidate.box, gap)) && span.extend < L.resolveArc) {
-      span.pixels = Math.min(span.pixels + growPx, L.resolveArc * span.r);
-      span.extend = span.pixels / span.r;
-      for (let j = i + 1; j < spans.length; j++) {
-        const inner = spans[j - 1]!;
-        const outer = spans[j]!;
-        const floor = inner.extend + minTipPx / outer.r;
-        if (outer.extend < floor) {
-          outer.extend = Math.min(floor, L.resolveArc);
-          outer.pixels = outer.extend * outer.r;
-        }
-        if (outer.pixels <= inner.pixels) {
-          outer.pixels = Math.min(inner.pixels + lengthStep, L.resolveArc * outer.r);
-          outer.extend = outer.pixels / outer.r;
-        }
-      }
-      candidate = placeOne(center, near, direction, span, pad, fontH);
-    }
-
-    placed.push(candidate.place);
-    boxes.push(candidate.box);
-  }
-
-  return placed;
 }
 
 function placeOne(
@@ -192,7 +243,7 @@ function placeOne(
 ): { place: LegendSnippetPlace; box: Rect } {
   const arcEnd = near + direction * span.extend;
   const tip = polar(center.x, center.y, span.r, arcEnd);
-  const text = textAtTip(center, arcEnd, tip, pad, direction);
+  const text = textAtTip(arcEnd, tip, pad, fontH, span.mark.textWidth, direction);
   const away = tipAway(near, direction);
   return {
     place: {
@@ -206,38 +257,36 @@ function placeOne(
       quarter: quarterOf(arcEnd),
       side: away.x < 0 ? 'left' : 'right',
     },
-    box: labelBox(text.at, text.align, span.mark.textWidth, fontH, 0),
+    box: labelBox(text.at, text.align, span.mark.textWidth, fontH),
   };
 }
 
 /**
- * Horizontal text at the line tip. Never rotates (no upside-down type).
+ * Horizontal text fully past the arc tip along the callout tangent.
  *
- * Top/bottom peaks use centered anchors above/below the tip. Everywhere else
- * text grows into the callout tangent (`tipAway`): open space on the left ->
- * right-align; open space on the right -> left-align. Using the tip's clock
- * hemisphere alone fails near 12 o'clock (Marseille), where tips are still in
- * the "right" half while the staircase is heading left into whitespace.
+ * Canvas uses a middle baseline, so half the glyph height reaches back toward
+ * the tip when the tangent is steep. Clearance is therefore
+ * `pad + fontH/2`, and at peaks an extra half text-width so a centered label
+ * cannot straddle the stroke (that looked like a strikethrough).
  */
 export function textAtTip(
-  _center: Point,
   tipMath: number,
   tip: Point,
   pad: number,
+  fontH: number,
+  textWidth: number,
   direction: 1 | -1,
 ): { at: Point; align: TextAlign } {
-  const c = clockAngle(tipMath);
-  if (c < PEAK || c > TAU - PEAK) {
-    return { at: { x: tip.x, y: tip.y - pad }, align: 'center' };
-  }
-  if (Math.abs(c - Math.PI) <= PEAK) {
-    return { at: { x: tip.x, y: tip.y + pad }, align: 'center' };
-  }
   const away = tipAway(tipMath, direction);
-  if (away.x < 0) {
-    return { at: { x: tip.x - pad, y: tip.y }, align: 'right' };
-  }
-  return { at: { x: tip.x + pad, y: tip.y }, align: 'left' };
+  const c = clockAngle(tipMath);
+  const atPeak = c < PEAK || c > TAU - PEAK || Math.abs(c - Math.PI) <= PEAK;
+  const align: TextAlign = atPeak ? 'center' : away.x < 0 ? 'right' : 'left';
+  // Near edge of the label sits `pad` past the tip; middle baseline + optional
+  // half-width for centered peak labels push the anchor further out.
+  let along = pad + fontH / 2;
+  if (align === 'center') along += textWidth / 2;
+  const at = { x: tip.x + away.x * along, y: tip.y + away.y * along };
+  return { at, align };
 }
 
 /** Unit tangent into open space next to the segment along `direction`. */
@@ -247,19 +296,8 @@ export function tipAway(angle: number, direction: 1 | -1): Point {
     : { x: Math.sin(angle), y: -Math.cos(angle) };
 }
 
-function labelBox(
-  at: Point,
-  align: TextAlign,
-  textWidth: number,
-  fontH: number,
-  pad: number,
-): Rect {
-  const x =
-    align === 'left'
-      ? at.x + pad
-      : align === 'right'
-        ? at.x - pad - textWidth
-        : at.x - textWidth / 2;
+function labelBox(at: Point, align: TextAlign, textWidth: number, fontH: number): Rect {
+  const x = align === 'left' ? at.x : align === 'right' ? at.x - textWidth : at.x - textWidth / 2;
   return { x, y: at.y - fontH / 2, w: textWidth, h: fontH };
 }
 

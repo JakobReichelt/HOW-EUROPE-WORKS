@@ -22,15 +22,17 @@ export interface WorldNode {
   outer: number;
 }
 
-/** Radius by sqrt(working people), interpolated between world.minRadius and world.maxRadius. */
+/**
+ * Radius so donut area is proportional to working people.
+ * The smallest country stays at world.minRadius; every other radius follows
+ * sqrt(people / minPeople) with no upper clamp.
+ */
 export function radiusScale(countries: Country[]): (workingPeople: number) => number {
-  const roots = countries.map((c) => Math.sqrt(Math.max(0, c.workingPeople)));
-  const lo = Math.min(...roots);
-  const hi = Math.max(...roots);
+  const people = countries.map((c) => Math.max(0, c.workingPeople));
+  const lo = Math.min(...people);
   return (workingPeople) => {
-    if (hi <= lo) return w.maxRadius;
-    const t = (Math.sqrt(Math.max(0, workingPeople)) - lo) / (hi - lo);
-    return w.minRadius + (w.maxRadius - w.minRadius) * Math.min(1, Math.max(0, t));
+    if (!(lo > 0)) return w.minRadius;
+    return w.minRadius * Math.sqrt(Math.max(0, workingPeople) / lo);
   };
 }
 

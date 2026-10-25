@@ -109,25 +109,34 @@ canvas:focus-visible {
   line-height: var(--lh-xs);
 }
 
-/* ---- landing (Figma 393:13621) ---- */
+/* ---- landing (Figma 393:13621), laid out on the 1536 x 960 frame ---- */
 
 .landing {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
   pointer-events: none;
 }
 
-.landing > * {
+.landing__stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1536px;
+  height: 960px;
+  transform-origin: 0 0;
+}
+
+.landing__title,
+.landing__subtitle,
+.landing__link {
+  position: absolute;
+  margin: 0;
   pointer-events: auto;
 }
 
 .landing__title {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
   font-size: var(--fs-title);
   line-height: var(--lh-title);
   font-weight: 700;
@@ -135,14 +144,29 @@ canvas:focus-visible {
 }
 
 .landing__subtitle {
-  margin: 0;
-  font-size: var(--fs-s);
-  line-height: var(--lh-s);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
-.landing__actions {
+.landing__link {
   display: flex;
-  gap: 32px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  font-weight: 400;
+}
+
+.landing__link--muted {
+  opacity: 0.5;
+}
+
+.landing__link-arrow {
+  font-size: var(--fs-s);
+  line-height: var(--lh-s);
 }
 
 /* ---- intro (Figma 415:1295 ... 419:2812), laid out on the 1536 x 960 frame ---- */

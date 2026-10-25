@@ -188,7 +188,10 @@ function drawSnippets(
       p.strokeWeight(theme.stroke.thin);
       setDash(p, 'none');
     }
+    // Square caps so the stroke does not bleed past a1 into the label.
+    p.strokeCap(p.SQUARE);
     p.arc(g.cx, g.cy, item.r * 2, item.r * 2, item.a0, item.a1);
+    p.strokeCap(p.ROUND);
     setDash(p, 'none');
     label(p, item.at, item.text, item.align, mark.active ? c.ink : L.inactive, sizeScale);
   }

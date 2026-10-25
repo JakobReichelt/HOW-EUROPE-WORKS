@@ -87,9 +87,11 @@ export const theme = {
     hoverGap: 6,
   },
   world: {
-    /** Smallest / largest donut radius (Figma small 256, large 400). Scaled by sqrt(working people). */
+    /**
+     * Radius of the smallest country donut (Figma small = 256).
+     * Others scale as sqrt(workingPeople / min) so area matches headcount.
+     */
     minRadius: 256,
-    maxRadius: 400,
     /**
      * Gap between neighbouring donuts, in world px.
      * Clears a city name on one ring and the two-line hover on the other:
@@ -99,9 +101,10 @@ export const theme = {
     /**
      * World units per degree of latitude for the geographic seed.
      * Longitude is scaled by cos(48 deg) so east-west degrees match north-south ones.
-     * Tuned so the drawn rings meet and neighbours stay in map order.
+     * Tuned so the drawn rings meet and neighbours stay in map order once radii
+     * follow real headcount (largest ~6x the smallest).
      */
-    geoScale: 122,
+    geoScale: 350,
     /** Country centred on first view (Figma 347:6230). */
     initialCountry: 'FR',
   },
@@ -154,8 +157,12 @@ export const theme = {
     resolveArc: 1.25,
     /** Clearance between legend label boxes, in px at sizeScale 1. */
     labelGap: 6,
-    /** Nudge from the arc tip to the text anchor (ruleset +/- 8px). */
-    labelPad: 8,
+    /**
+     * Gap from the arc tip to the near edge of the label (px at sizeScale 1).
+     * Layout also adds half the font height so a middle baseline cannot sit on
+     * the stroke when the callout tangent is nearly vertical.
+     */
+    labelPad: 10,
     /** How far each collision pass lengthens a line, in px at sizeScale 1. */
     growStep: 6,
     /**
@@ -165,17 +172,22 @@ export const theme = {
     maxExampleSpan: 1.6,
   },
   /**
-   * Background fragments on the landing page (Figma 393:13621).
-   * Position and radius are fractions of the viewport. rotation = start value;
-   * rotateTo / durationMs / easing describe the later boomerang animation and are unused for now.
+   * Landing page on the 1536 x 960 frame (Figma 393:13621).
+   * Copy and fragment centres are design pixels from the top-left.
+   * rotation = start value; rotateTo / durationMs / easing describe the later
+   * boomerang animation and are unused for now.
    */
   landing: {
     opacity: 0.35,
     durationMs: 20016,
     easing: [0.5, 0, 0.5, 1] as const,
+    title: { x: 523, y: 291, w: 239 },
+    subtitle: { x: 776, y: 368 },
+    start: { x: 523, y: 432 },
+    skip: { x: 776, y: 432 },
     fragments: [
-      { countryId: 'FR', x: 0.12, y: 0.9, radius: 0.75, rotation: 0.524, rotateTo: -1.745 },
-      { countryId: 'DE', x: 0.92, y: 0.08, radius: 0.6, rotation: -1.439, rotateTo: 4.844 },
+      { countryId: 'FR', x: 328, y: 901, R: 810, rotation: 0.524, rotateTo: -1.745 },
+      { countryId: 'DE', x: 1550, y: 506, R: 340, rotation: -1.439, rotateTo: 4.844 },
     ],
   },
   /**
