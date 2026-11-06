@@ -112,9 +112,32 @@ export const theme = {
   },
   /** Selection donut radius as a fraction of the smaller viewport side. One size for every selection. */
   focus: { radius: 0.42 },
+  /**
+   * Motion timings (ms) and shares. CSS mirrors accordion / hover in tokens.css.
+   * prefers-reduced-motion zeroes every duration at runtime.
+   */
+  motion: {
+    /** Segment morph when the selection donut changes. */
+    segmentMs: 650,
+    /** Overview donuts fading in / out around a selection. */
+    fadeMs: 450,
+    /** Hover tone, stroke and drop-ring ease. */
+    hoverMs: 160,
+    /** Delay between words in the hover sentence. */
+    wordStaggerMs: 55,
+    /** Fade-in of one hover word. */
+    wordFadeMs: 180,
+    /** Dragged country / city returning to its home slot. */
+    returnMs: 420,
+    /** Share of the morph during which a dropped ghost fades out. */
+    ghostFadeShare: 0.33,
+    /** Sidebar panel and info-section accordion. */
+    accordionMs: 280,
+  },
   zoom: {
-    /** Absolute floor used by framing helpers; overview min is the fit-all zoom instead. */
+    /** Floor for intro and selection framing. The overview camera does not zoom. */
     min: 0.15,
+    /** Ceiling for framing helpers. The overview stays further out than the design-scale view. */
     max: 2,
     wheelStep: 1.1,
     /** Screen px inset when fitting every country donut in the viewport. */
@@ -137,8 +160,6 @@ export const theme = {
     labelPad: 48,
     /** Offscreen picture side above which the donut is drawn live instead. */
     pictureMaxSide: 1024,
-    /** Wait after the last wheel event before rebaking pictures at the new zoom. */
-    zoomSettleMs: 150,
   },
   /**
    * Legend callouts (Figma 360:6643). Screen pixels at sizeScale 1 (selection-sized

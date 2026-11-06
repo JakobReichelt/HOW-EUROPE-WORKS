@@ -86,12 +86,19 @@ sector dots, selected-country dots) are centred on it.
 Server sends `src/main.ts` as `video/mp2t` and the browser blocks it. If you want Live Server,
 run `npm run build:watch` and serve `dist/` (already configured in `.vscode/settings.json`).
 
-## Adding animation later
+## Animation
 
-The base is intentionally static. Suggested approach:
+Explore motion is scene-local (not in the store). Timing lives in `theme.motion`
+(and CSS `--motion-*` for the sidebar).
 
-1. Add a small tween module in `src/canvas/` that interpolates numbers over time.
-2. Interpolate `DonutGeometry` / `BarGeometry` between the previous and next layout
-   (same segment ids -> lerp `a0, a1, r0, r1, shadow`).
-3. While a tween runs, call `requestRedraw()` every frame; stop when it ends (keep `noLoop`).
-4. Landing motion values are already in `theme.landing` (rotation from/to, duration, easing).
+1. `src/canvas/anim/tween.ts` eases numbers; `DonutMorph` + `layout/donutTween.ts`
+   interpolate `DonutGeometry` (same `cityId` -> lerp angles / radii; enter / exit
+   grow or collapse from the 12 o'clock slit).
+2. `ExploreScene.isAnimating()` is true while a morph, hover fade, word reveal or
+   drag return is running. After `scene.draw`, the sketch calls `requestRedraw()`
+   until that returns false (`noLoop` stays on).
+3. Overview <-> selection fades the background donuts; drag release eases the
+   lifted piece home; a drop morphs from the target country's overview donut.
+4. The sidebar accordion (panels + info sections) is CSS-only.
+5. Landing motion values remain in `theme.landing` (rotation from/to, duration, easing)
+   for a later landing pass.

@@ -4,6 +4,7 @@
  * Purely visual state (camera, drag in progress) may live inside the scene.
  */
 import type p5 from 'p5';
+import { introFrame } from '../../config/introFrame';
 import { theme } from '../../config/theme';
 import type { DataIndex } from '../../data/selectors';
 import type { Actions } from '../../state/actions';
@@ -28,6 +29,11 @@ export interface Scene {
   enter?(ctx: SceneContext, from?: SceneId | null): void;
   draw(ctx: SceneContext): void;
   /**
+   * True while a local tween still needs frames (morph, hover fade, drag return).
+   * The sketch keeps calling requestRedraw until this is false.
+   */
+  isAnimating?(): boolean;
+  /**
    * Return true when this event changed local visual state (camera, drag).
    * Store updates redraw on their own; a false return skips the frame.
    */
@@ -45,7 +51,9 @@ export interface Scene {
 }
 
 export function viewportFor(scene: SceneId, width: number, height: number): Rect {
-  const { stripWidth, panelWidth } = theme.layout;
-  const left = scene === 'explore' ? stripWidth + panelWidth : scene === 'intro' ? stripWidth : 0;
+  const scale = introFrame(width, height).scale;
+  const strip = theme.layout.stripWidth * scale;
+  const panel = theme.layout.panelWidth * scale;
+  const left = scene === 'explore' ? strip + panel : scene === 'intro' ? strip : 0;
   return { x: left, y: 0, w: Math.max(1, width - left), h: height };
 }

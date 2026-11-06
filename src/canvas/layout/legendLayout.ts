@@ -124,6 +124,7 @@ export function placeLegendSnippets(
   direction: 1 | -1,
   marks: readonly LegendMarkSpec[],
   sizeScale: number,
+  fontScale = sizeScale,
 ): LegendSnippetPlace[] {
   if (marks.length === 0) return [];
 
@@ -132,10 +133,10 @@ export function placeLegendSnippets(
   const reversed = reverseStaircase(near, direction);
   const snippet = L.snippet * sizeScale;
   const lengthStep = L.lengthStep * sizeScale;
-  const fontH = theme.font.xs * sizeScale;
-  const pad = L.labelPad * sizeScale;
-  const gap = L.labelGap * sizeScale;
-  const growPx = Math.max(2, L.growStep * sizeScale);
+  const fontH = theme.font.xs * fontScale;
+  const pad = L.labelPad * fontScale;
+  const gap = L.labelGap * fontScale;
+  const growPx = Math.max(2, L.growStep * fontScale);
   const minTipPx = fontH + gap;
 
   // i = 0 innermost. Default: outer long. Top-left left-of-segment: inner long.

@@ -31,7 +31,6 @@ export function createInteractionPanel(ctx: UiContext): Component {
   return {
     el,
     update(state, previous) {
-      el.hidden = state.sidebar.panel !== 'interaction';
       legend.setAttribute('aria-pressed', String(state.legendOpen));
       sectors.update(state, previous);
       cities.update(state, previous);

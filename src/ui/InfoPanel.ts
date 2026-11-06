@@ -1,7 +1,7 @@
 /** Sidebar panel "Info" (Figma 288:10567): title, back to intro, about the project, about the data. */
 import { ABOUT_DATA, ABOUT_PROJECT, TITLE } from '../content/about';
 import type { InfoSection } from '../state/types';
-import { ARROW, h, show } from './dom';
+import { ARROW, h } from './dom';
 import type { Component, UiContext } from './types';
 
 export function createInfoPanel({ actions }: UiContext): Component {
@@ -11,7 +11,12 @@ export function createInfoPanel({ actions }: UiContext): Component {
   ];
 
   const parts = sections.map((s) => {
-    const body = h('p', { class: 'accordion__body', id: `info-${s.id}` }, s.body);
+    const body = h('p', { class: 'accordion__body' }, s.body);
+    const panel = h(
+      'div',
+      { class: 'accordion__panel', id: `info-${s.id}` },
+      h('div', { class: 'accordion__panel-inner' }, body),
+    );
     const toggle = h(
       'button',
       {
@@ -23,7 +28,12 @@ export function createInfoPanel({ actions }: UiContext): Component {
       },
       s.title,
     );
-    return { id: s.id, toggle, body, el: h('section', { class: 'panel-section' }, toggle, body) };
+    return {
+      id: s.id,
+      toggle,
+      panel,
+      el: h('section', { class: 'panel-section' }, toggle, panel),
+    };
   });
 
   const el = h(
@@ -53,11 +63,12 @@ export function createInfoPanel({ actions }: UiContext): Component {
   return {
     el,
     update(state) {
-      el.hidden = state.sidebar.panel !== 'info';
       for (const part of parts) {
         const open = state.sidebar.openInfo === part.id;
         part.toggle.setAttribute('aria-expanded', String(open));
-        show(part.body, open);
+        part.panel.dataset.open = open ? 'true' : 'false';
+        if (open) part.panel.removeAttribute('inert');
+        else part.panel.setAttribute('inert', '');
       }
     },
   };

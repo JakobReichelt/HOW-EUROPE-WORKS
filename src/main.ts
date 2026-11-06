@@ -3,6 +3,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/sidebar.css';
 import { mountSketch } from './canvas/sketch';
+import { introFrame } from './config/introFrame';
 import { theme } from './config/theme';
 import { INTRO_STEPS } from './content/intro';
 import { loadDataset } from './data/loadDataset';
@@ -20,7 +21,18 @@ function element(id: string): HTMLElement {
   return el;
 }
 
+/** Sidebar and map type follow the intro frame. The stages apply it themselves. */
+function bindTypeScale(): void {
+  const apply = () => {
+    const scale = introFrame(window.innerWidth, window.innerHeight).scale;
+    document.documentElement.style.setProperty('--type-scale', String(scale));
+  };
+  apply();
+  window.addEventListener('resize', apply);
+}
+
 async function main() {
+  bindTypeScale();
   const [dataset] = await Promise.all([
     loadDataset(),
     document.fonts.load(`16px "${theme.font.family}"`).catch(() => undefined),

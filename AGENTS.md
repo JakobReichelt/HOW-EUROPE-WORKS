@@ -5,8 +5,9 @@ Guide for AI agents (and humans) working in this repo. Read this first.
 ## What this is
 
 An exploratory p5.js web app about work in European cities, rebuilt from a Figma prototype
-(file `YyCrxpHa9VACRwwsFevHWm`). Vite + TypeScript (strict). Current state: **wireframe base,
-no animations**. Structure and data are final-ish; visuals and motion are to be refined.
+(file `YyCrxpHa9VACRwwsFevHWm`). Vite + TypeScript (strict). Structure and data are final-ish;
+explore motion (segment morphs, hover, drag return, sidebar accordion) is in place. Landing
+and intro motion can still be refined.
 
 ## Commands
 
@@ -40,6 +41,8 @@ read `store.getState()` and change state only through `actions`. They never impo
 | City -> country mapping, display names        | `data/config/cities.json`                                                             |
 | Thresholds, commute scale, sector labels      | `src/config/encoding.ts`                                                              |
 | Colours, sizes, donut proportions             | `src/config/theme.ts` (+ `src/styles/tokens.css`)                                     |
+| Motion timings (morph, hover, accordion)      | `src/config/theme.ts` (`motion`) + `--motion-*` in `tokens.css`                       |
+| Segment morph / hover fade / drag return      | `src/canvas/anim/*`, `src/canvas/layout/donutTween.ts`, `ExploreScene`                |
 | Donut geometry (angles, radii)                | `src/canvas/layout/donutLayout.ts`                                                    |
 | Where donuts sit on the explore canvas        | `src/canvas/layout/worldLayout.ts` (sizes / spacing in `theme.world`)                 |
 | Legend callouts                               | `src/canvas/draw/legend.ts`, copy in `src/content/about.ts`                           |

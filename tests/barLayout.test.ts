@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { introFrame } from '../src/config/introFrame';
 import { theme } from '../src/config/theme';
 import { barLayout } from '../src/canvas/layout/barLayout';
+import { viewportFor } from '../src/canvas/scenes/Scene';
 import { makeCity } from './fixtures';
 
 const city = makeCity({
@@ -17,14 +18,38 @@ const city = makeCity({
 const box = theme.intro.box;
 
 describe('intro frame', () => {
-  it('uses design pixels when the window is the Figma frame or larger', () => {
+  const anchorX = theme.intro.box.x + theme.intro.box.w / 2;
+
+  it('matches the Figma frame exactly at the design size', () => {
     expect(introFrame(1536, 960)).toEqual({ scale: 1, ox: 0, oy: 0 });
-    expect(introFrame(1920, 1080)).toEqual({ scale: 1, ox: 0, oy: 0 });
   });
 
-  it('scales down to fit a smaller window', () => {
-    expect(introFrame(768, 960).scale).toBeCloseTo(0.5);
-    expect(introFrame(1536, 480).scale).toBeCloseTo(0.5);
+  it('scales to fit and keeps the artboard on screen', () => {
+    expect(introFrame(768, 960)).toMatchObject({ scale: 0.5, ox: 0 });
+    expect(introFrame(768, 960).oy).toBeCloseTo(264.25);
+    expect(introFrame(1536, 480)).toMatchObject({ scale: 0.5, oy: 0 });
+    expect(introFrame(1536, 480).ox).toBeCloseTo(415.5);
+    expect(introFrame(1920, 1080)).toMatchObject({ scale: 1.125, oy: 0 });
+    expect(introFrame(1920, 1080).ox).toBeCloseTo(166.875);
+  });
+
+  it('puts the story in the middle of a larger screen', () => {
+    const frame = introFrame(2560, 1440);
+    expect(frame.ox + anchorX * frame.scale).toBeCloseTo(1280);
+    expect(frame.oy).toBe(0);
+  });
+
+  it('grows the sidebar inset with the same scale', () => {
+    const scale = introFrame(2560, 1440).scale;
+    const left = (theme.layout.stripWidth + theme.layout.panelWidth) * scale;
+    expect(viewportFor('explore', 2560, 1440)).toEqual({
+      x: left,
+      y: 0,
+      w: 2560 - left,
+      h: 1440,
+    });
+    expect(viewportFor('intro', 2560, 1440).x).toBe(theme.layout.stripWidth * scale);
+    expect(viewportFor('landing', 2560, 1440).x).toBe(0);
   });
 });
 

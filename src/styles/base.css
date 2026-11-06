@@ -12,8 +12,8 @@ body {
   background: var(--c-paper);
   color: var(--c-ink);
   font-family: var(--font);
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
 }
 
 [hidden] {
@@ -33,8 +33,8 @@ button {
 button:focus-visible,
 input:focus-visible,
 canvas:focus-visible {
-  outline: 1px dashed var(--c-ink);
-  outline-offset: 2px;
+  outline: var(--line-width) dashed var(--c-ink);
+  outline-offset: calc(2px * var(--type-scale));
 }
 
 /* ---- layers: canvas below, DOM UI on top. UI root lets pointer events through. ---- */
@@ -96,8 +96,8 @@ canvas:focus-visible {
 }
 
 .link {
-  font-size: var(--fs-s);
-  line-height: var(--lh-s);
+  font-size: calc(var(--fs-s) * var(--type-scale));
+  line-height: calc(var(--lh-s) * var(--type-scale));
 }
 
 .link--muted {
@@ -105,8 +105,15 @@ canvas:focus-visible {
 }
 
 .link--small {
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-accordion: 0ms;
+    --motion-hover: 0ms;
+  }
 }
 
 /* ---- landing (Figma 393:13621), laid out on the 1536 x 960 frame ---- */
@@ -124,6 +131,7 @@ canvas:focus-visible {
   width: 1536px;
   height: 960px;
   transform-origin: 0 0;
+  --type-scale: 1;
 }
 
 .landing__title,
@@ -137,15 +145,15 @@ canvas:focus-visible {
 .landing__title {
   display: flex;
   flex-direction: column;
-  font-size: var(--fs-title);
-  line-height: var(--lh-title);
+  font-size: calc(var(--fs-title) * var(--type-scale));
+  line-height: calc(var(--lh-title) * var(--type-scale));
   font-weight: 700;
-  letter-spacing: -0.76px;
+  letter-spacing: calc(-0.76px * var(--type-scale));
 }
 
 .landing__subtitle {
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
   font-weight: 400;
   white-space: nowrap;
 }
@@ -155,8 +163,8 @@ canvas:focus-visible {
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
   font-weight: 400;
 }
 
@@ -165,8 +173,8 @@ canvas:focus-visible {
 }
 
 .landing__link-arrow {
-  font-size: var(--fs-s);
-  line-height: var(--lh-s);
+  font-size: calc(var(--fs-s) * var(--type-scale));
+  line-height: calc(var(--lh-s) * var(--type-scale));
 }
 
 /* ---- intro (Figma 415:1295 ... 419:2812), laid out on the 1536 x 960 frame ---- */
@@ -184,6 +192,7 @@ canvas:focus-visible {
   width: 1536px;
   height: 960px;
   transform-origin: 0 0;
+  --type-scale: 1;
 }
 
 .intro__block {
@@ -192,8 +201,8 @@ canvas:focus-visible {
 
 .intro__line {
   margin: 0;
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
   font-weight: 400;
 }
 
@@ -209,16 +218,16 @@ canvas:focus-visible {
   align-items: center;
   margin: 0;
   pointer-events: auto;
-  font-size: var(--fs-xs);
-  line-height: var(--lh-xs);
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
   font-weight: 400;
 }
 
 .intro__arrow {
   display: block;
-  font-size: var(--fs-s);
-  line-height: var(--lh-s);
-  height: var(--lh-s);
+  font-size: calc(var(--fs-s) * var(--type-scale));
+  line-height: calc(var(--lh-s) * var(--type-scale));
+  height: calc(var(--lh-s) * var(--type-scale));
 }
 
 .intro__next--beside {

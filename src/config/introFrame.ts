@@ -1,7 +1,8 @@
 /**
- * Maps the 1536 x 960 intro frame onto the window.
- * At the design size (or larger) coordinates are 1:1 from the top-left, so the
- * strip and the chart sit where Figma puts them. Smaller windows scale down.
+ * Fits the 1536 x 960 frame inside the window.
+ * The story (the bar, the copy above it, next below it) sits left of the
+ * artboard centre. On a larger screen the frame shifts until that point is
+ * in the middle, and stops at the screen edge so the artboard stays whole.
  */
 import { theme } from './theme';
 
@@ -11,10 +12,28 @@ export interface IntroFrame {
   oy: number;
 }
 
+/** Centre of the intro story on the artboard. */
+function storyAnchor(): { x: number; y: number } {
+  const intro = theme.intro;
+  return {
+    x: intro.box.x + intro.box.w / 2,
+    y: (intro.copy.opening.y + intro.nav.next.y) / 2,
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 export function introFrame(width: number, height: number): IntroFrame {
   const { width: dw, height: dh } = theme.layout.design;
-  const scale = Math.min(1, width / dw, height / dh);
-  return { scale, ox: 0, oy: 0 };
+  const scale = Math.min(width / dw, height / dh);
+  const anchor = storyAnchor();
+  return {
+    scale,
+    ox: clamp(width / 2 - anchor.x * scale, 0, Math.max(0, width - dw * scale)),
+    oy: clamp(height / 2 - anchor.y * scale, 0, Math.max(0, height - dh * scale)),
+  };
 }
 
 /** Canvas pixels of the Switzerland donut on the last intro step. */

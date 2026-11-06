@@ -161,6 +161,8 @@ export function hatchLines(
 export interface TextRun {
   text: string;
   bold?: boolean;
+  /** Per-run opacity in 0..1. Omitted means fully opaque. */
+  alpha?: number;
 }
 
 /**
@@ -175,14 +177,17 @@ export function arcText(
   o: { cx: number; cy: number; r: number; angle: number; orientAt?: number },
 ): void {
   const list = typeof runs === 'string' ? [{ text: runs }] : runs;
-  const glyphs: { ch: string; w: number; bold: boolean }[] = [];
+  const glyphs: { ch: string; w: number; bold: boolean; alpha: number }[] = [];
   for (const run of list) {
     p.textStyle(run.bold ? p.BOLD : p.NORMAL);
-    for (const ch of run.text) glyphs.push({ ch, w: p.textWidth(ch), bold: !!run.bold });
+    const alpha = run.alpha ?? 1;
+    for (const ch of run.text) glyphs.push({ ch, w: p.textWidth(ch), bold: !!run.bold, alpha });
   }
   const span = glyphs.reduce((sum, g) => sum + g.w, 0) / o.r;
   const flip = Math.sin(o.orientAt ?? o.angle + span / 2) > 0;
   const ascent = p.textAscent();
+  const base = ctx2d(p);
+  const baseAlpha = base.globalAlpha;
 
   p.push();
   p.textAlign(p.CENTER, p.BASELINE);
@@ -190,14 +195,17 @@ export function arcText(
   for (const g of glyphs) {
     const t = (advanced + g.w / 2) / o.r;
     advanced += g.w;
+    if (g.alpha <= 0) continue;
     const a = flip ? o.angle + span - t : o.angle + t;
     p.push();
     p.translate(o.cx + Math.cos(a) * o.r, o.cy + Math.sin(a) * o.r);
     p.rotate(flip ? a - Math.PI / 2 : a + Math.PI / 2);
     p.textStyle(g.bold ? p.BOLD : p.NORMAL);
+    base.globalAlpha = baseAlpha * g.alpha;
     p.text(g.ch, 0, flip ? ascent : 0);
     p.pop();
   }
+  base.globalAlpha = baseAlpha;
   p.pop();
   p.textStyle(p.NORMAL);
 }

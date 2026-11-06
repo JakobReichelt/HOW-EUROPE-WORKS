@@ -26,6 +26,10 @@ export interface PictureRequest {
   geom: DonutGeometry;
   /** Camera zoom this frame (1 for a donut already in screen space). */
   zoom: number;
+  /** Stroke and detail scale baked into the buffer. 1 in world space under `zoom`. */
+  lineScale: number;
+  /** Gender tick scale baked into the buffer. Same units as `lineScale`. */
+  genderScale: number;
   /** Zoom pictures are allowed to bake at. Differs while a wheel gesture is settling. */
   bakedZoom: number;
   sectorFilter: SectorFilter;
@@ -41,6 +45,8 @@ interface Stored extends DonutPicture {
 function pictureKey(req: PictureRequest): string {
   return [
     req.bakedZoom,
+    req.lineScale,
+    req.genderScale,
     req.sectorFilter ?? '',
     req.detail,
     req.label ?? '',
@@ -118,7 +124,8 @@ export class DonutPictures {
     gfx.scale(zoom);
     gfx.translate(-g.cx, -g.cy);
     drawDonut(gfx, g, {
-      lineScale: 1 / zoom,
+      lineScale: req.lineScale,
+      genderScale: req.genderScale,
       zoom,
       detail: req.detail,
       sectorFilter: req.sectorFilter,
@@ -166,11 +173,16 @@ export class DonutPictures {
 }
 
 /** Draw a picture in the same space as `g` (world space under the camera, or screen space). */
-export function blitDonut(p: p5, pic: DonutPicture, g: DonutGeometry): void {
+export function blitDonut(p: p5, pic: DonutPicture, g: DonutGeometry, alpha = 1): void {
   const span = pic.side / pic.zoom;
   p.push();
   p.imageMode(p.CORNER);
-  p.noTint();
+  if (alpha < 1) {
+    const ctx = p.drawingContext as CanvasRenderingContext2D;
+    ctx.globalAlpha = alpha;
+  } else {
+    p.noTint();
+  }
   p.image(pic.gfx, g.cx - span / 2, g.cy - span / 2, span, span);
   p.pop();
 }

@@ -22,6 +22,10 @@
   --c-industry: #e8e6bd;
 
   --font: 'Baikal VAR', system-ui, sans-serif;
+  /* Intro frame scale. Set on the document from introFrame(). Intro and landing
+     stages set it back to 1; their transform already applies the scale.
+     Multiply it at each font-size so the value resolves on that element. */
+  --type-scale: 1;
   --fs-xs: 14px;
   --lh-xs: 16px;
   --fs-s: 18px;
@@ -29,15 +33,20 @@
   --fs-title: 38px;
   --lh-title: 32px;
 
-  --strip-width: 24px;
-  --panel-width: 127px;
-
-  --line: 1px solid var(--c-ink);
-  --pad: 16px;
-  --gap: 8px;
-  --mark: 8px;
-  /* Half the 14px sector mark, plus a pixel, so a centred mark clears the border. */
-  --mark-bleed: 8px;
+  --line-width: calc(1px * var(--type-scale));
+  --line: var(--line-width) solid var(--c-ink);
+  --strip-width: calc(24px * var(--type-scale));
+  --panel-width: calc(127px * var(--type-scale));
+  --pad: calc(16px * var(--type-scale));
+  --gap: calc(8px * var(--type-scale));
+  --mark: calc(8px * var(--type-scale));
+  /* Half the 14px sector mark, plus the border, so a centred mark clears it. */
+  --mark-bleed: calc(8px * var(--type-scale));
   /* Vertical "Interaction" title (~100px) + top/bottom pad. */
-  --header-height: 132px;
+  --header-height: calc(132px * var(--type-scale));
+
+  /* Motion (mirror of theme.motion). */
+  --motion-accordion: 280ms;
+  --motion-hover: 160ms;
+  --ease: cubic-bezier(0.45, 0, 0.55, 1);
 }

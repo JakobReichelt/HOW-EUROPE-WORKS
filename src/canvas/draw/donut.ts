@@ -8,6 +8,7 @@ import type p5 from 'p5';
 import { theme } from '../../config/theme';
 import { formatInt, formatPercent } from '../../data/format';
 import type { SectorFilter } from '../../state/types';
+import { wordAlphas } from '../anim/wordReveal';
 import { labelFitsSegment, type DonutGeometry, type Segment } from '../layout/donutLayout';
 import type { DetailLevel } from '../view/visibility';
 import { polar, type Point } from '../geometry';
@@ -53,6 +54,20 @@ export interface DonutStyle {
   hoverCityId: string | null;
   /** Whole donut is hovered: darker band on every segment. */
   hoverCountry: boolean;
+  /**
+   * Soft 0..1 hover amount per city. When set, overrides the boolean hover for tone / stroke.
+   * Missing cities count as 0.
+   */
+  hoverMix?: (cityId: string) => number;
+  /** Soft 0..1 whole-donut hover. Blended with hoverMix. */
+  countryMix?: number;
+  /**
+   * Soft 0..1 "a city of this donut is hovered". Other segments lighten by this minus
+   * their own mix. Falls back to the strongest city mix when omitted.
+   */
+  dimMix?: number;
+  /** Elapsed ms since the current city hover began; drives the word-by-word reveal. */
+  hoverRevealMs?: number;
   sectorFilter: SectorFilter;
   /** Text in the centre (country name), null for none. */
   label: string | null;
@@ -60,6 +75,12 @@ export interface DonutStyle {
   groupLabel: (countryId: string) => string;
   /** City names along the segments and gender labels. */
   details: boolean;
+  /**
+   * Gender tick, dotted split and symbol stroke, in this donut's coordinates.
+   * The legend uses 1 (screen px). Overview passes 1 / zoom so the same icon
+   * stays that screen size under the camera. Defaults to `lineScale`.
+   */
+  genderScale: number;
   /** Overall opacity. */
   alpha: number;
   /** City left out of this draw, because it is being dragged elsewhere. */
@@ -77,6 +98,7 @@ export const defaultDonutStyle: DonutStyle = {
   label: null,
   groupLabel: (countryId) => countryId,
   details: true,
+  genderScale: 1,
   alpha: 1,
   omitCityId: null,
 };
@@ -107,8 +129,17 @@ export function drawDonut(p: p5, g: DonutGeometry, style: Partial<DonutStyle> = 
   if (g.groups.length > 1) drawGroupBrackets(p, g, s);
   if (s.label && hover?.place !== 'center') {
     drawCenterLabel(p, g, s.label, centerLabelScale(s), s.lineScale);
+  } else if (s.label && hover?.place === 'center') {
+    const reveal = s.hoverRevealMs ?? 0;
+    const fade = Math.max(0, 1 - reveal / Math.max(1, theme.motion.wordFadeMs));
+    if (fade > 0.01) {
+      const prev = ctx.globalAlpha;
+      ctx.globalAlpha = s.alpha * fade;
+      drawCenterLabel(p, g, s.label, centerLabelScale(s), s.lineScale);
+      ctx.globalAlpha = prev;
+    }
   }
-  if (hover) drawHoverInfo(p, g, hover, s.textScale);
+  if (hover) drawHoverInfo(p, g, hover, s.textScale, s.hoverRevealMs ?? 0);
   p.pop();
 }
 
@@ -121,6 +152,7 @@ export function drawDonutText(p: p5, g: DonutGeometry, style: Partial<DonutStyle
   const s = { ...defaultDonutStyle, ...style };
   p.push();
   p.textFont(theme.font.family);
+  ctx2d(p).globalAlpha = s.alpha;
   if (s.label) drawCenterLabel(p, g, s.label, centerLabelScale(s), s.lineScale);
   if (s.detail !== 'full') {
     p.pop();
@@ -141,7 +173,7 @@ export function drawDonutText(p: p5, g: DonutGeometry, style: Partial<DonutStyle
       angle: seg.a0,
     });
     if (seg.genderA !== null && seg.city.maleShare !== null) {
-      drawGenderLabel(p, g, seg, seg.city.maleShare, s.lineScale, s.textScale);
+      drawGenderLabel(p, g, seg, seg.city.maleShare, genderScaleOf(s), s.textScale);
     }
   }
   p.pop();
@@ -153,6 +185,18 @@ function lighten(hex: string, t: number): string {
   const channel = (shift: number) => {
     const value = (n >> shift) & 255;
     return Math.round(value + (255 - value) * t);
+  };
+  return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
+}
+
+/** Mix two hex colours. `t` is 0 for `a` and 1 for `b`. */
+function mixHex(a: string, b: string, t: number): string {
+  const na = Number.parseInt(a.slice(1), 16);
+  const nb = Number.parseInt(b.slice(1), 16);
+  const channel = (shift: number) => {
+    const va = (na >> shift) & 255;
+    const vb = (nb >> shift) & 255;
+    return Math.round(va + (vb - va) * t);
   };
   return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
 }
@@ -180,36 +224,58 @@ export function drawSegment(
     | 'detail'
     | 'hoverCityId'
     | 'hoverCountry'
+    | 'hoverMix'
+    | 'countryMix'
+    | 'dimMix'
     | 'sectorFilter'
     | 'details'
   > & {
     hoverLabelOnSegment?: boolean;
+    /** Screen size of the gender mark, in this geometry's units. Defaults to lineScale. */
+    genderScale?: number;
     /** Leave the city name off. The legend uses the hover sentence instead. */
     omitCityName?: boolean;
     /** Paper fill, so the legend diagram stays white (Figma 360:6643). */
     plain?: boolean;
-    /** Draw the gender tick and its percent. The legend draws its own. */
+    /** Draw the gender tick and its percent. */
     genderMark?: boolean;
   },
 ): void {
-  const hovered = s.hoverCountry || s.hoverCityId === seg.cityId;
-  const dimmed = s.hoverCityId !== null && !hovered;
-  const tone = (hex: string) => (dimmed ? lighten(hex, d.dimAlpha) : hex);
+  const useSoft = s.hoverMix !== undefined || s.countryMix !== undefined;
+  const selfMix = useSoft
+    ? Math.max(s.hoverMix?.(seg.cityId) ?? 0, s.countryMix ?? 0)
+    : s.hoverCountry || s.hoverCityId === seg.cityId
+      ? 1
+      : 0;
+  const peak = useSoft
+    ? (s.dimMix ?? Math.max(0, ...g.segments.map((other) => s.hoverMix?.(other.cityId) ?? 0)))
+    : s.hoverCityId !== null
+      ? 1
+      : 0;
+  const dimAmount = d.dimAlpha * Math.max(0, peak - selfMix);
+  const tone = (hex: string) => (dimAmount > 0 ? lighten(hex, dimAmount) : hex);
   // null keeps every colour. 'none' matches no segment, so every fill goes to paper.
   const filteredOut = s.sectorFilter !== null && seg.sector !== s.sectorFilter;
   const line = theme.stroke.thin * s.lineScale;
+  const hoverLine = theme.stroke.hover * s.lineScale;
   const step = s.detail === 'mark' ? theme.canvas.arcStepCoarse : theme.canvas.arcStep;
 
   if (seg.shadow > 0) {
     p.noStroke();
-    p.fill(tone(hovered ? c.shadowHover : c.shadow));
+    const shadowFill =
+      selfMix <= 0
+        ? tone(c.shadow)
+        : selfMix >= 1
+          ? tone(c.shadowHover)
+          : tone(mixHex(c.shadow, c.shadowHover, selfMix));
+    p.fill(shadowFill);
     annularSector(p, g.cx, g.cy, seg.r1, seg.r1 + seg.shadow, seg.a0, seg.a1, step);
   }
 
   const sector = s.plain || filteredOut || !seg.sector ? c.paper : c.sector[seg.sector];
   p.fill(tone(sector));
   p.stroke(c.ink);
-  p.strokeWeight(hovered ? theme.stroke.hover * s.lineScale : line);
+  p.strokeWeight(line + (hoverLine - line) * selfMix);
   annularSector(p, g.cx, g.cy, seg.r0, seg.r1, seg.a0, seg.a1, step);
 
   if (s.detail === 'full' && seg.hatchA1 !== null && seg.hatchA1 > seg.a0) {
@@ -234,7 +300,7 @@ export function drawSegment(
 
   const roomForLabels = s.detail === 'full' && (seg.a1 - seg.a0) * seg.r1 * s.zoom >= d.minLabelArc;
   if (seg.genderA !== null && s.genderMark !== false) {
-    drawGender(p, g, seg, s.lineScale, s.textScale, s.details && roomForLabels);
+    drawGender(p, g, seg, genderScaleOf(s), s.textScale, s.details && roomForLabels);
   }
   const showName =
     s.omitCityName !== true && (s.hoverCityId !== seg.cityId || s.hoverLabelOnSegment === true);
@@ -278,6 +344,11 @@ function drawGender(
 
 function genderTick(lineScale: number): number {
   return px.genderTick * lineScale;
+}
+
+/** Legend-sized gender mark. Callers that omit it keep the segment stroke scale. */
+function genderScaleOf(s: { lineScale: number; genderScale?: number }): number {
+  return s.genderScale ?? s.lineScale;
 }
 
 interface GenderLayout {
@@ -391,7 +462,8 @@ interface HoverLayout {
   /** `arc` when both lines fit on the segment; otherwise they share the hole. */
   place: 'arc' | 'center';
   people: TextRun[];
-  commuter: string | null;
+  /** Second line, split per word. Empty when the city has no commuter rate. */
+  commuter: TextRun[];
   /** Working-people line, on the city-name radius. Commuter rate sits further out. */
   commuterR: number;
   peopleR: number;
@@ -399,6 +471,14 @@ interface HoverLayout {
   angle: number;
   /** Shared angle so both lines mirror together instead of one of them turning around. */
   orientAt: number;
+  /** Total words across both lines, for the staggered reveal. */
+  wordCount: number;
+}
+
+/** Split a phrase into runs of "word" + trailing space (last word has no space). */
+function wordRuns(text: string, bold = false): TextRun[] {
+  const parts = text.split(/(\s+)/).filter((part) => part.length > 0);
+  return parts.map((part) => ({ text: part, bold }));
 }
 
 /**
@@ -413,20 +493,25 @@ function layoutHover(p: p5, seg: Segment, textScale: number, lineScale: number):
   p.textStyle(p.NORMAL);
   const people: TextRun[] = [
     { text: seg.city.name, bold: true },
-    { text: ` has ${formatInt(seg.city.workingPeople)} working people` },
+    ...wordRuns(` has ${formatInt(seg.city.workingPeople)} working people`),
   ];
-  const commuter =
+  const commuterText =
     seg.city.commuterRate === null
       ? null
       : `commuter-rate of ${formatPercent(seg.city.commuterRate)}`;
+  const commuter = commuterText === null ? [] : wordRuns(commuterText);
   const labelR = seg.r1 + seg.shadow + px.labelOffset * lineScale;
   const peopleR = labelR;
-  const commuterR = commuter === null ? labelR : labelR + (theme.font.xs + px.hoverGap) * textScale;
+  const commuterR =
+    commuter.length === 0 ? labelR : labelR + (theme.font.xs + px.hoverGap) * textScale;
   const peopleSpan = measureRuns(p, people) / peopleR;
-  const commuterSpan = commuter === null ? 0 : textSpanWidth(p, commuter) / commuterR;
+  const commuterSpan = commuter.length === 0 ? 0 : measureRuns(p, commuter) / commuterR;
   const maxSpan = Math.max(peopleSpan, commuterSpan);
   const nameSpan = textSpanWidth(p, seg.city.name) / labelR;
   const fits = labelFitsSegment(seg.a0, seg.a1, maxSpan);
+  const wordCount =
+    people.filter((run) => run.text.trim().length > 0).length +
+    commuter.filter((run) => run.text.trim().length > 0).length;
   return {
     place: fits ? 'arc' : 'center',
     people,
@@ -435,7 +520,22 @@ function layoutHover(p: p5, seg: Segment, textScale: number, lineScale: number):
     peopleR,
     angle: seg.a0,
     orientAt: seg.a0 + nameSpan / 2,
+    wordCount,
   };
+}
+
+function withReveal(runs: TextRun[], alphas: number[], offset: number): TextRun[] {
+  let i = offset;
+  return runs.map((run) => {
+    if (run.text.trim().length === 0) return { ...run, alpha: 1 };
+    const alpha = alphas[i] ?? 1;
+    i += 1;
+    return { ...run, alpha };
+  });
+}
+
+function revealOffset(runs: TextRun[]): number {
+  return runs.filter((run) => run.text.trim().length > 0).length;
 }
 
 /** Same width arcText uses: sum of glyph advances, so the fit check matches the drawn line. */
@@ -468,14 +568,28 @@ export function segmentHover(
   const layout = layoutHover(p, seg, textScale, lineScale);
   return {
     place: layout.place,
-    paint: (g) => drawHoverInfo(p, g, layout, textScale),
+    paint: (g) => drawHoverInfo(p, g, layout, textScale, Number.POSITIVE_INFINITY),
   };
 }
 
 /** "<b>Paris</b> has 5'172'658 working people", with the commuter rate on the line below. */
-function drawHoverInfo(p: p5, g: DonutGeometry, layout: HoverLayout, textScale: number): void {
+function drawHoverInfo(
+  p: p5,
+  g: DonutGeometry,
+  layout: HoverLayout,
+  textScale: number,
+  revealMs: number,
+): void {
+  const alphas = wordAlphas(
+    layout.wordCount,
+    revealMs,
+    theme.motion.wordStaggerMs,
+    theme.motion.wordFadeMs,
+  );
+  const people = withReveal(layout.people, alphas, 0);
+  const commuter = withReveal(layout.commuter, alphas, revealOffset(layout.people));
   if (layout.place === 'center') {
-    drawCenterHover(p, g, layout, textScale);
+    drawCenterHover(p, g, people, commuter, layout, textScale);
     return;
   }
   p.noStroke();
@@ -483,18 +597,25 @@ function drawHoverInfo(p: p5, g: DonutGeometry, layout: HoverLayout, textScale: 
   p.textSize(theme.font.xs * textScale);
   p.textFont(theme.font.family);
   const placed = { angle: layout.angle, orientAt: layout.orientAt };
-  arcText(p, layout.people, { cx: g.cx, cy: g.cy, r: layout.peopleR, ...placed });
-  if (!layout.commuter) return;
-  arcText(p, layout.commuter, { cx: g.cx, cy: g.cy, r: layout.commuterR, ...placed });
+  arcText(p, people, { cx: g.cx, cy: g.cy, r: layout.peopleR, ...placed });
+  if (commuter.length === 0) return;
+  arcText(p, commuter, { cx: g.cx, cy: g.cy, r: layout.commuterR, ...placed });
 }
 
 /** Both hover lines in the hole. The country name is left out by the caller. */
-function drawCenterHover(p: p5, g: DonutGeometry, layout: HoverLayout, textScale: number): void {
+function drawCenterHover(
+  p: p5,
+  g: DonutGeometry,
+  people: TextRun[],
+  commuter: TextRun[],
+  layout: HoverLayout,
+  textScale: number,
+): void {
   p.textFont(theme.font.family);
   p.textSize(theme.font.xs * textScale);
   const maxWidth = g.R * d.baseline * 1.6;
   const peopleWidth = measureRuns(p, layout.people);
-  const commuterWidth = layout.commuter === null ? 0 : textSpanWidth(p, layout.commuter);
+  const commuterWidth = measureRuns(p, layout.commuter);
   const widest = Math.max(peopleWidth, commuterWidth);
   const size =
     widest > maxWidth && widest > 0
@@ -503,15 +624,13 @@ function drawCenterHover(p: p5, g: DonutGeometry, layout: HoverLayout, textScale
   p.textSize(size);
   p.noStroke();
   p.fill(c.ink);
-  if (layout.commuter === null) {
-    drawRunLine(p, layout.people, g.cx, g.cy);
+  if (commuter.length === 0) {
+    drawRunLine(p, people, g.cx, g.cy);
     return;
   }
   const leading = p.textAscent() + p.textDescent() + px.hoverGap * textScale;
-  drawRunLine(p, layout.people, g.cx, g.cy - leading / 2);
-  p.textStyle(p.NORMAL);
-  p.textAlign(p.CENTER, p.CENTER);
-  p.text(layout.commuter, g.cx, g.cy + leading / 2);
+  drawRunLine(p, people, g.cx, g.cy - leading / 2);
+  drawRunLine(p, commuter, g.cx, g.cy + leading / 2);
 }
 
 function drawRunLine(p: p5, runs: TextRun[], x: number, y: number): void {
@@ -521,16 +640,25 @@ function drawRunLine(p: p5, runs: TextRun[], x: number, y: number): void {
   });
   const total = widths.reduce((sum, w) => sum + w, 0);
   let cursor = x - total / 2;
+  const ctx = ctx2d(p);
+  const baseAlpha = ctx.globalAlpha;
   p.textAlign(p.LEFT, p.CENTER);
   p.noStroke();
   p.fill(c.ink);
   for (let i = 0; i < runs.length; i++) {
     const run = runs[i];
     if (!run) continue;
+    const alpha = run.alpha ?? 1;
+    if (alpha <= 0) {
+      cursor += widths[i] ?? 0;
+      continue;
+    }
     p.textStyle(run.bold ? p.BOLD : p.NORMAL);
+    ctx.globalAlpha = baseAlpha * alpha;
     p.text(run.text, cursor, y);
     cursor += widths[i] ?? 0;
   }
+  ctx.globalAlpha = baseAlpha;
   p.textStyle(p.NORMAL);
 }
 

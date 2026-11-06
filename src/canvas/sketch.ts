@@ -44,7 +44,7 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
     });
   };
 
-  const explore = new ExploreScene(data, requestRedraw);
+  const explore = new ExploreScene(data);
   const scenes: Record<SceneId, Scene> = {
     landing: new LandingScene(),
     intro: new IntroScene(),
@@ -135,6 +135,7 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
         'aria-label',
         scene.describe(ctx),
       );
+      if (scene.isAnimating?.()) requestRedraw();
     };
     sketch.windowResized = () => {
       sketch.resizeCanvas(root.clientWidth, root.clientHeight);

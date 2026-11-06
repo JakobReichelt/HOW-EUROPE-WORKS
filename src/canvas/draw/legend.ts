@@ -64,14 +64,15 @@ export function drawLegend(
   sectorFilter: SectorFilter,
   scale: LegendScale,
   sizeScale: number,
+  fontScale = sizeScale,
 ): void {
   p.push();
   p.textFont(theme.font.family);
-  p.textSize(theme.font.xs * sizeScale);
-  const hover = segmentHover(p, seg, sizeScale);
+  p.textSize(theme.font.xs * fontScale);
+  const hover = segmentHover(p, seg, fontScale);
   drawSegment(p, g, seg, {
     lineScale: 1,
-    textScale: sizeScale,
+    textScale: fontScale,
     // Legend geometry is screen-space already (resetMatrix); do not re-apply camera zoom.
     zoom: 1,
     detail: 'full',
@@ -82,8 +83,8 @@ export function drawLegend(
     omitCityName: hover.place === 'arc',
   });
   hover.paint(g);
-  drawUnemployment(p, g, seg, scale, sizeScale);
-  drawCommuteGuides(p, g, seg, sizeScale);
+  drawUnemployment(p, g, seg, scale, sizeScale, fontScale);
+  drawCommuteGuides(p, g, seg, sizeScale, fontScale);
   p.pop();
 }
 
@@ -97,6 +98,7 @@ function drawUnemployment(
   seg: Segment,
   scale: LegendScale,
   sizeScale: number,
+  fontScale: number,
 ): void {
   const step = g.R * theme.donut.shadowStep;
   const level = seg.city.unemploymentLevel;
@@ -109,11 +111,17 @@ function drawUnemployment(
       kind: 'level' as const,
     })),
   ];
-  drawSnippets(p, g, seg.a0 - theme.donut.gap, -1, marks, sizeScale);
+  drawSnippets(p, g, seg.a0 - theme.donut.gap, -1, marks, sizeScale, fontScale);
 }
 
 /** Short arcs on the same radii as the red guide rings of the donut. */
-function drawCommuteGuides(p: p5, g: DonutGeometry, seg: Segment, sizeScale: number): void {
+function drawCommuteGuides(
+  p: p5,
+  g: DonutGeometry,
+  seg: Segment,
+  sizeScale: number,
+  fontScale: number,
+): void {
   const minutes = seg.city.commuteMinutes;
   const nearest =
     minutes === null
@@ -136,7 +144,7 @@ function drawCommuteGuides(p: p5, g: DonutGeometry, seg: Segment, sizeScale: num
       dash: guide.style,
     })),
   ];
-  drawSnippets(p, g, seg.a1 + theme.donut.gap, 1, marks, sizeScale);
+  drawSnippets(p, g, seg.a1 + theme.donut.gap, 1, marks, sizeScale, fontScale);
 }
 
 interface ScaleMark {
@@ -158,6 +166,7 @@ function drawSnippets(
   direction: 1 | -1,
   marks: ScaleMark[],
   sizeScale: number,
+  fontScale: number,
 ): void {
   const byText = new Map(marks.map((mark) => [mark.text + '@' + mark.r, mark]));
   const placed = placeLegendSnippets(
@@ -167,9 +176,10 @@ function drawSnippets(
     marks.map((mark) => ({
       r: mark.r,
       text: mark.text,
-      textWidth: measure(p, mark.text, sizeScale),
+      textWidth: measure(p, mark.text, fontScale),
     })),
     sizeScale,
+    fontScale,
   );
   for (const item of placed) {
     const mark = byText.get(item.text + '@' + item.r);
@@ -193,7 +203,7 @@ function drawSnippets(
     p.arc(g.cx, g.cy, item.r * 2, item.r * 2, item.a0, item.a1);
     p.strokeCap(p.ROUND);
     setDash(p, 'none');
-    label(p, item.at, item.text, item.align, mark.active ? c.ink : L.inactive, sizeScale);
+    label(p, item.at, item.text, item.align, mark.active ? c.ink : L.inactive, fontScale);
   }
 }
 
@@ -207,10 +217,10 @@ function angleDistance(a: number, b: number): number {
 }
 
 /** Screen pixels after resetMatrix; size follows the annotated donut (selection = 1). */
-function measure(p: p5, text: string, sizeScale: number): number {
+function measure(p: p5, text: string, fontScale: number): number {
   const ctx = p.drawingContext as CanvasRenderingContext2D;
   const prev = ctx.font;
-  ctx.font = `${theme.font.xs * sizeScale}px "${theme.font.family}"`;
+  ctx.font = `${theme.font.xs * fontScale}px "${theme.font.family}"`;
   const width = ctx.measureText(text).width;
   ctx.font = prev;
   return width;
@@ -222,13 +232,13 @@ function label(
   text: string,
   align: 'left' | 'right' | 'center',
   color: string,
-  sizeScale: number,
+  fontScale: number,
 ): void {
   const ctx = p.drawingContext as CanvasRenderingContext2D;
   const density = p.pixelDensity();
   ctx.save();
   ctx.setTransform(density, 0, 0, density, 0, 0);
-  ctx.font = `${theme.font.xs * sizeScale}px "${theme.font.family}"`;
+  ctx.font = `${theme.font.xs * fontScale}px "${theme.font.family}"`;
   ctx.fillStyle = color;
   ctx.textAlign = align === 'left' ? 'left' : align === 'right' ? 'right' : 'center';
   ctx.textBaseline = 'middle';
