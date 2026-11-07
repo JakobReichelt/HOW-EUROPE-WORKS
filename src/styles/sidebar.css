@@ -153,21 +153,23 @@
   min-height: var(--header-height);
   display: flex;
   align-items: flex-start;
-  padding: var(--pad) calc((var(--strip-width) - var(--lh-xs)) / 2);
+  /* Centre the vertical title in the folded strip; use scaled lh so side gaps track resize. */
+  padding: var(--pad) calc((var(--strip-width) - var(--lh-xs-scaled)) / 2);
   border-bottom: var(--line-width) solid transparent;
   overflow: visible;
   transition:
-    padding-left var(--motion-accordion) var(--ease),
+    padding var(--motion-accordion) var(--ease),
     border-bottom-color var(--motion-accordion) var(--ease);
 }
 
 .panel[data-open='false']:hover .panel-header,
 .panel[data-open='false']:focus-within .panel-header {
-  padding-left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs)) / 2);
+  padding-left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs-scaled)) / 2);
+  padding-right: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs-scaled)) / 2);
 }
 
 .panel[data-open='true'] .panel-header {
-  padding-left: var(--pad);
+  padding: var(--pad);
   border-bottom-color: var(--c-ink);
 }
 
@@ -262,7 +264,7 @@
 .panel-header--title > .sidebar-strip__mode {
   position: absolute;
   top: calc(198px * var(--type-scale));
-  left: calc((var(--strip-width) - var(--lh-xs)) / 2);
+  left: calc((var(--strip-width) - var(--lh-xs-scaled)) / 2);
   opacity: 1;
   transition:
     left var(--motion-accordion) var(--ease),
@@ -271,7 +273,7 @@
 
 .panel[data-open='false']:hover .panel-header--title > .sidebar-strip__mode,
 .panel[data-open='false']:focus-within .panel-header--title > .sidebar-strip__mode {
-  left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs)) / 2);
+  left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs-scaled)) / 2);
 }
 
 .panel[data-open='true'] .panel-header--title > .sidebar-strip__mode {

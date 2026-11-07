@@ -32,6 +32,9 @@
   --lh-s: 20px;
   --fs-title: 38px;
   --lh-title: 32px;
+  /* Scaled line boxes for strip centering (must track --type-scale with --strip-width). */
+  --lh-xs-scaled: calc(var(--lh-xs) * var(--type-scale));
+  --lh-s-scaled: calc(var(--lh-s) * var(--type-scale));
 
   --line-width: max(1px, calc(1px * var(--type-scale)));
   --line: var(--line-width) solid var(--c-ink);
