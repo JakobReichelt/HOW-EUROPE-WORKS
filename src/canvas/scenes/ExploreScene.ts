@@ -8,7 +8,7 @@
  * drag snap-back, drop morph. See theme.motion.
  */
 import { legendUnemploymentPercents } from '../../config/encoding';
-import { introFrame } from '../../config/introFrame';
+import { introDonutScreen, introFrame } from '../../config/introFrame';
 import { theme } from '../../config/theme';
 import { INTRO_COUNTRY_ID, INTRO_STEPS } from '../../content/intro';
 import { citiesOf, type DataIndex } from '../../data/selectors';
@@ -16,7 +16,7 @@ import { encodeSelection } from '../../state/selection';
 import type { SceneId, SelectionPart } from '../../state/types';
 import { DonutMorph } from '../anim/DonutMorph';
 import { HoverFades } from '../anim/HoverFades';
-import { easeOutCubic, lerp, motionMs, progress } from '../anim/tween';
+import { easeInOutCubic, easeOutCubic, lerp, motionMs, progress } from '../anim/tween';
 import {
   applyCamera,
   framePoint,
@@ -25,7 +25,7 @@ import {
   worldToScreen,
   type Camera,
 } from '../camera';
-import { drawDonut, drawDonutText, drawSegment } from '../draw/donut';
+import { drawDonut, drawSegment } from '../draw/donut';
 import { blitDonut, DonutPictures } from '../draw/donutPicture';
 import { defaultLegendSegment, drawLegend, drawVeil } from '../draw/legend';
 import { ctx2d } from '../draw/shapes';
@@ -37,7 +37,7 @@ import {
   type DonutGeometry,
   type DonutGroup,
 } from '../layout/donutLayout';
-import { mapDonut } from '../layout/donutTween';
+import { interpolateDonut, mapDonut } from '../layout/donutTween';
 import { worldLayout, type WorldNode } from '../layout/worldLayout';
 import { rectCenter, type Point, type Rect } from '../geometry';
 import {
@@ -119,6 +119,15 @@ interface Transition {
   morph: DonutMorph;
   /** Country whose overview donut is the morph anchor (hidden from the faded map). */
   anchorId: string | null;
+  /** Camera pan to the selected country before the enter-selection fade and morph begin. */
+  cameraPan?: {
+    from: Point;
+    to: Point;
+    startMs: number;
+    durationMs: number;
+  };
+  /** Follow-up morph and overview fade-in after the deselect segment animation finishes. */
+  nextMorph?: DonutMorph;
 }
 
 export class ExploreScene implements Scene {
@@ -146,8 +155,15 @@ export class ExploreScene implements Scene {
   private hoverRevealStart = 0;
   private returning: DragReturn | null = null;
   private dropGhost: DropGhost | null = null;
+  /** Dropped country or city kept hidden on the canvas until leaving selection mode. */
+  private droppedDrag: Drag | null = null;
   /** Next selection morph should start from this country's overview donut (drop target). */
   private pendingDropAnchor: string | null = null;
+  /**
+   * Skip the deselect camera reframe once. Used when leaving the intro donut: the camera
+   * already matches the intro pose, same as a settled leave-selection handoff.
+   */
+  private keepCameraOnDeselect = false;
 
   constructor(data: DataIndex) {
     this.nodes = worldLayout(data.countries, data.dataset.cities);
@@ -171,6 +187,7 @@ export class ExploreScene implements Scene {
     if (this.returning) return true;
     if (this.dropGhost) return true;
     if (this.hoverFades.isAnimating()) return true;
+    if (this.pictures?.hasDeferred()) return true;
     if (this.hoverRevealCity) {
       const elapsed = performance.now() - this.hoverRevealStart;
       const words = 12;
@@ -190,7 +207,9 @@ export class ExploreScene implements Scene {
     this.transition = null;
     this.returning = null;
     this.dropGhost = null;
+    this.droppedDrag = null;
     this.pendingDropAnchor = null;
+    this.keepCameraOnDeselect = false;
     this.hoverFades.clear();
     this.hoverRevealCity = null;
     // Finish intro (donut step) and "skip intro" both open on Switzerland at the intro pose.
@@ -208,10 +227,32 @@ export class ExploreScene implements Scene {
         this.camera = framePoint(node, node.R, at, node.R * zoom, ctx.viewport);
         this.cameraReady = true;
         this.snapZoom();
+        // Seed a Switzerland "selection" so the first draw runs leave-selection:
+        // morph the intro donut into the overview ring and fade the map in.
+        if (fromIntroDonut) {
+          const selection: SelectionPart[] = [{ kind: 'country', id: INTRO_COUNTRY_ID }];
+          this.shownSelection = selection;
+          this.shownKey = encodeSelection(selection);
+          this.shownGeom = this.introLeaveGeom(ctx);
+          this.keepCameraOnDeselect = true;
+        }
         return;
       }
     }
     if (!this.cameraReady) this.resetCamera(ctx);
+  }
+
+  /** Switzerland donut in screen space, matching the last intro step. */
+  private introLeaveGeom(ctx: SceneContext): DonutGeometry {
+    const pose = introDonutScreen(ctx.p.width, ctx.p.height);
+    const world = this.worldGeoms.find((g) => g.countryIds[0] === INTRO_COUNTRY_ID);
+    if (!world) {
+      return donutLayout(
+        [{ countryId: INTRO_COUNTRY_ID, cities: citiesOf(ctx.data, INTRO_COUNTRY_ID) }],
+        { cx: pose.x, cy: pose.y, R: pose.r },
+      );
+    }
+    return mapDonut(world, pose.x, pose.y, pose.r);
   }
 
   /** First view: fixed overview zoom, centred on world.initialCountry. */
@@ -232,16 +273,29 @@ export class ExploreScene implements Scene {
     this.applyViewFocus(ctx);
     if (exploreMode(ctx.state.selection) === 'overview') this.clampOverviewZoom(ctx);
     this.syncTransition(ctx, now, previousSelection);
+    this.tickTransitionCamera(now);
     const pictures = this.ensurePictures(ctx.p);
     pictures.beginFrame();
 
     const leaving = this.transition?.kind === 'leave-selection';
     const entering = this.transition?.kind === 'enter-selection';
+    const combiningOnCanvas = Boolean(entering && this.transition?.nextMorph);
+    const deselectingSegments = Boolean(leaving && this.transition?.nextMorph);
     const fadeT = this.transition ? this.transition.morph.t(now) : 1;
 
     if (exploreMode(ctx.state.selection) === 'overview' || leaving || entering) {
-      const overviewAlpha = leaving ? fadeT : entering ? 1 - fadeT : 1;
-      this.drawOverview(ctx, now, overviewAlpha);
+      const overviewAlpha = leaving
+        ? deselectingSegments
+          ? 0
+          : fadeT
+        : entering
+          ? combiningOnCanvas
+            ? 1
+            : 1 - fadeT
+          : 1;
+      if (overviewAlpha > 0) {
+        this.drawOverview(ctx, now, overviewAlpha);
+      }
     }
     if (exploreMode(ctx.state.selection) !== 'overview' || leaving) {
       this.drawSelection(ctx, now);
@@ -250,8 +304,9 @@ export class ExploreScene implements Scene {
     if (this.dropGhost) this.drawDropGhost(ctx, now);
 
     pictures.endFrame();
-    if (ctx.state.legendOpen) this.drawLegendOverlay(ctx);
-    else this.legendPin = null;
+    if (ctx.state.legendOpen && exploreMode(ctx.state.selection) !== 'overview') {
+      this.drawLegendOverlay(ctx);
+    } else this.legendPin = null;
   }
 
   /**
@@ -260,9 +315,41 @@ export class ExploreScene implements Scene {
    */
   private settleFinished(now: number): void {
     if (this.transition?.morph.done(now)) {
-      this.shownGeom = this.transition.morph.to;
-      this.transition = null;
-      this.dropGhost = null;
+      if (this.transition.nextMorph) {
+        const next = this.transition.nextMorph;
+        const anchorId = this.transition.anchorId;
+        const anchorNode =
+          this.transition.kind === 'enter-selection' && anchorId
+            ? this.nodes.find((n) => n.countryId === anchorId)
+            : undefined;
+        let cameraPan: Transition['cameraPan'] | undefined;
+        let morphStartMs = now;
+        if (anchorNode) {
+          const dist = Math.hypot(this.camera.x - anchorNode.x, this.camera.y - anchorNode.y);
+          const panDuration = motionMs(theme.motion.panMs);
+          if (dist > 1 && panDuration > 0) {
+            cameraPan = {
+              from: { x: this.camera.x, y: this.camera.y },
+              to: { x: anchorNode.x, y: anchorNode.y },
+              startMs: now,
+              durationMs: panDuration,
+            };
+            morphStartMs = now + panDuration;
+          } else {
+            this.camera = { ...this.camera, x: anchorNode.x, y: anchorNode.y };
+          }
+        }
+        this.transition = {
+          kind: this.transition.kind,
+          morph: new DonutMorph(next.from, next.to, morphStartMs, next.durationMs),
+          anchorId,
+          cameraPan,
+        };
+      } else {
+        this.shownGeom = this.transition.morph.to;
+        this.transition = null;
+        this.dropGhost = null;
+      }
     }
     if (
       this.returning &&
@@ -280,6 +367,17 @@ export class ExploreScene implements Scene {
     ) {
       this.dropGhost = null;
     }
+  }
+
+  private tickTransitionCamera(now: number): void {
+    const pan = this.transition?.cameraPan;
+    if (!pan) return;
+    const t = easeInOutCubic(progress(pan.startMs, now, pan.durationMs));
+    this.camera = {
+      ...this.camera,
+      x: lerp(pan.from.x, pan.to.x, t),
+      y: lerp(pan.from.y, pan.to.y, t),
+    };
   }
 
   /** Overview has no zoom control. It stays further out than the design-scale close view. */
@@ -363,6 +461,45 @@ export class ExploreScene implements Scene {
     return g.segments.some((seg) => fades.get(`city:${seg.cityId}`) > 0);
   }
 
+  /** Overview geometry for `g` with an invisible placeholder segment opened for a drop hover. */
+  private dropPreviewGeom(ctx: SceneContext, g: DonutGeometry, dropMix: number): DonutGeometry {
+    if (dropMix <= 0.001) return g;
+    const countryId = g.countryIds[0];
+    if (!countryId) return g;
+    const activeDrag =
+      (this.session?.moved ? this.session.drag : null) ?? this.returning?.drag ?? this.droppedDrag;
+    let draggedPeople = 0;
+    if (activeDrag?.kind === 'city') {
+      draggedPeople = ctx.data.cityById.get(activeDrag.cityId)?.workingPeople ?? 0;
+    } else if (activeDrag?.kind === 'country') {
+      draggedPeople = ctx.data.countryById.get(activeDrag.countryId)?.workingPeople ?? 0;
+    }
+    const targetPeople = ctx.data.countryById.get(countryId)?.workingPeople ?? 0;
+    const placeholderWeight = draggedPeople > 0 ? draggedPeople : Math.max(1, targetPeople * 0.25);
+    const baseCities = citiesOf(ctx.data, countryId);
+    const template = baseCities[0];
+    if (!template) return g;
+    const placeholder = {
+      ...template,
+      id: `__drop_${countryId}__`,
+      name: '',
+      workingPeople: placeholderWeight,
+    };
+    const expanded = donutLayout(
+      [
+        { countryId, cities: baseCities },
+        { countryId, cities: [placeholder], bracket: false },
+      ],
+      { cx: g.cx, cy: g.cy, R: g.R },
+    );
+    const morphed = interpolateDonut(g, expanded, easeInOutCubic(dropMix));
+    return {
+      ...morphed,
+      segments: morphed.segments.filter((seg) => seg.cityId !== placeholder.id),
+      groups: g.groups,
+    };
+  }
+
   private tickHovers(ctx: SceneContext, now: number): void {
     const active = new Map<string, number>();
     const { cityId, countryId } = ctx.state.hover;
@@ -382,7 +519,10 @@ export class ExploreScene implements Scene {
     }
   }
 
-  /** Blit a baked donut, or draw it live when the picture is missing or over the size cap. */
+  /**
+   * Live ring and centre name, then a density-1 blit of city / gender labels.
+   * Label buffers rebuild one country per frame.
+   */
   private paintCached(
     ctx: SceneContext,
     g: DonutGeometry,
@@ -394,6 +534,13 @@ export class ExploreScene implements Scene {
     textScale = 1,
     alpha = 1,
   ): void {
+    const detail = detailLevel(g.R * zoom);
+    drawDonut(ctx.p, g, {
+      ...this.bodyStyle(ctx, zoom, detail, label, lineScale, textScale),
+      genderScale: lineScale,
+      details: false,
+      alpha,
+    });
     const pic = this.ensurePictures(ctx.p).pictureFor({
       id,
       geom: g,
@@ -401,20 +548,12 @@ export class ExploreScene implements Scene {
       bakedZoom,
       lineScale,
       genderScale: lineScale,
+      textScale,
       sectorFilter: ctx.state.sectorFilter,
       detail: detailLevel(g.R * bakedZoom),
-      label,
       groupLabel: this.groupLabel(ctx),
     });
-    const style = {
-      ...this.bodyStyle(ctx, zoom, detailLevel(g.R * zoom), label, lineScale, textScale),
-      genderScale: lineScale,
-      alpha,
-    };
-    if (pic) {
-      blitDonut(ctx.p, pic, g, alpha);
-      drawDonutText(ctx.p, g, style);
-    } else drawDonut(ctx.p, g, style);
+    if (pic) blitDonut(ctx.p, pic, g, alpha);
   }
 
   private snapZoom(): void {
@@ -430,6 +569,11 @@ export class ExploreScene implements Scene {
     const previous = this.shownSelection;
     this.shownSelection = next;
     if (!previous || previous.length === 0 || next.length > 0) return;
+    this.droppedDrag = null;
+    if (this.keepCameraOnDeselect) {
+      this.keepCameraOnDeselect = false;
+      return;
+    }
     const cityCountry = (id: string) => ctx.data.cityById.get(id)?.country;
     const anchor = selectionAnchor(previous, this.nodes, cityCountry);
     if (!anchor) return;
@@ -490,9 +634,12 @@ export class ExploreScene implements Scene {
     let from: DonutGeometry;
     let kind: TransitionKind;
     let anchorId: string | null = null;
+    let cameraPan: Transition['cameraPan'] | undefined;
+    let nextMorph: DonutMorph | undefined;
+    let morphStartMs = now;
 
     if (this.shownGeom && this.transition && !this.transition.morph.done(now)) {
-      from = this.transition.morph.current(now);
+      from = this.placeTransitionDonut(ctx, this.transition.morph.current(now));
     } else if (this.shownGeom) {
       from = this.shownGeom;
     } else {
@@ -507,13 +654,46 @@ export class ExploreScene implements Scene {
         dropAnchor ??
         selectionTargetCountry(next, (id) => ctx.data.cityById.get(id)?.country) ??
         null;
-      const screen = this.countryScreenGeom(ctx, anchorId);
-      from = screen ?? from;
+      const anchorNode = anchorId ? this.nodes.find((n) => n.countryId === anchorId) : undefined;
+      const centredCamera = anchorNode
+        ? { ...this.camera, x: anchorNode.x, y: anchorNode.y }
+        : this.camera;
+      const screen = this.countryScreenGeomAt(ctx, anchorId, centredCamera);
+      from =
+        dropAnchor && screen
+          ? this.dropPreviewGeom(ctx, screen, this.hoverFades.get(`drop:${dropAnchor}`))
+          : (screen ?? from);
+
+      if (dropAnchor && screen && !this.sameSegmentLayout(screen, to)) {
+        const combinedOnCanvas = mapDonut(to, screen.cx, screen.cy, screen.R);
+        nextMorph = new DonutMorph(combinedOnCanvas, to, now);
+      } else if (anchorNode) {
+        const dist = Math.hypot(this.camera.x - anchorNode.x, this.camera.y - anchorNode.y);
+        const panDuration = motionMs(theme.motion.panMs);
+        if (dist > 1 && panDuration > 0) {
+          cameraPan = {
+            from: { x: this.camera.x, y: this.camera.y },
+            to: { x: anchorNode.x, y: anchorNode.y },
+            startMs: now,
+            durationMs: panDuration,
+          };
+          morphStartMs = now + panDuration;
+        } else {
+          this.camera = centredCamera;
+        }
+      }
     } else if (!wasOverview && isOverview) {
       kind = 'leave-selection';
       anchorId =
         selectionTargetCountry(prevSelection, (id) => ctx.data.cityById.get(id)?.country) ?? null;
       from = this.shownGeom ?? this.selectionGeometryFrom(ctx, prevSelection);
+      if (anchorId && !this.sameSegmentLayout(from, to)) {
+        const settledSelection = this.selectionGeometryFrom(ctx, [
+          { kind: 'country', id: anchorId },
+        ]);
+        const settledAtFromSize = mapDonut(settledSelection, from.cx, from.cy, from.R);
+        nextMorph = new DonutMorph(settledAtFromSize, to, now);
+      }
     } else {
       kind = 'selection';
       if (this.pendingDropAnchor) {
@@ -534,7 +714,26 @@ export class ExploreScene implements Scene {
       this.transition = null;
       return;
     }
-    this.transition = { kind, morph: new DonutMorph(from, to, now), anchorId };
+    const firstTarget = nextMorph ? nextMorph.from : to;
+    this.transition = {
+      kind,
+      morph: new DonutMorph(from, firstTarget, morphStartMs),
+      anchorId,
+      cameraPan,
+      nextMorph,
+    };
+  }
+
+  private sameSegmentLayout(a: DonutGeometry, b: DonutGeometry): boolean {
+    if (a.segments.length !== b.segments.length) return false;
+    const hasBracketA = a.groups.some((g) => g.bracket !== false);
+    const hasBracketB = b.groups.some((g) => g.bracket !== false);
+    if (hasBracketA !== hasBracketB) return false;
+    return a.segments.every((seg, i) => {
+      const other = b.segments[i];
+      if (!other || seg.cityId !== other.cityId) return false;
+      return Math.abs(seg.a0 - other.a0) < 1e-4 && Math.abs(seg.a1 - other.a1) < 1e-4;
+    });
   }
 
   private selectionGeometryFrom(
@@ -562,12 +761,20 @@ export class ExploreScene implements Scene {
   }
 
   private countryScreenGeom(ctx: SceneContext, countryId: string | null): DonutGeometry | null {
+    return this.countryScreenGeomAt(ctx, countryId, this.camera);
+  }
+
+  private countryScreenGeomAt(
+    ctx: SceneContext,
+    countryId: string | null,
+    camera: Camera,
+  ): DonutGeometry | null {
     if (!countryId) return null;
     const world = this.worldGeoms.find((g) => g.countryIds[0] === countryId);
     const node = this.nodes.find((n) => n.countryId === countryId);
     if (!world || !node) return null;
-    const screen = worldToScreen(this.camera, ctx.viewport, node);
-    return mapDonut(world, screen.x, screen.y, node.R * this.camera.zoom);
+    const screen = worldToScreen(camera, ctx.viewport, node);
+    return mapDonut(world, screen.x, screen.y, node.R * camera.zoom);
   }
 
   private drawOverview(ctx: SceneContext, now: number, alpha: number): void {
@@ -583,7 +790,9 @@ export class ExploreScene implements Scene {
           ? ret.drag.cityId
           : this.dropGhost?.drag.kind === 'city'
             ? this.dropGhost.drag.cityId
-            : null;
+            : this.droppedDrag?.kind === 'city'
+              ? this.droppedDrag.cityId
+              : null;
     const omitCountry =
       drag?.kind === 'country'
         ? drag.countryId
@@ -591,7 +800,14 @@ export class ExploreScene implements Scene {
           ? ret.drag.countryId
           : this.dropGhost?.drag.kind === 'country'
             ? this.dropGhost.drag.countryId
-            : null;
+            : this.droppedDrag?.kind === 'country'
+              ? this.droppedDrag.countryId
+              : null;
+    const omitCityCountry =
+      drag?.countryId ??
+      ret?.drag.countryId ??
+      this.dropGhost?.drag.countryId ??
+      this.droppedDrag?.countryId;
     const pictures = this.ensurePictures(p);
     const labelPad = theme.canvas.labelPad;
     const anchorId = this.transition?.anchorId;
@@ -608,10 +824,8 @@ export class ExploreScene implements Scene {
         pictures.retain(id);
         continue;
       }
-      if (
-        omitCity &&
-        countryId === (drag?.countryId ?? ret?.drag.countryId ?? this.dropGhost?.drag.countryId)
-      ) {
+      const dropMix = this.hoverFades.get(`drop:${countryId}`);
+      if (omitCity && countryId === omitCityCountry) {
         pictures.retain(id);
         drawDonut(p, g, {
           ...this.bodyStyle(ctx, zoom, detail, label, 1, textScale),
@@ -622,9 +836,15 @@ export class ExploreScene implements Scene {
       } else if (!circleHitsViewport(this.camera, ctx.viewport, g.cx, g.cy, g.outer, labelPad)) {
         continue;
       } else {
-        if (this.hoverActive(g) || state.hover.countryId === countryId) {
+        if (
+          this.hoverActive(g) ||
+          state.hover.countryId === countryId ||
+          this.dropTarget === countryId ||
+          dropMix > 0.001
+        ) {
           pictures.retain(id);
-          drawDonut(p, g, {
+          const drawnGeom = dropMix > 0.001 ? this.dropPreviewGeom(ctx, g, dropMix) : g;
+          drawDonut(p, drawnGeom, {
             ...this.bodyStyle(ctx, zoom, detail, label, 1, textScale),
             ...this.hoverStyle(ctx, g.countryIds),
             alpha,
@@ -632,16 +852,6 @@ export class ExploreScene implements Scene {
         } else {
           this.paintCached(ctx, g, id, zoom, this.bakedZoom, label, 1, textScale, alpha);
         }
-      }
-      const dropMix = this.hoverFades.get(`drop:${countryId}`);
-      if (dropMix > 0.001) {
-        p.noFill();
-        p.stroke(theme.color.ink);
-        const prev = ctx2d(p).globalAlpha;
-        ctx2d(p).globalAlpha = alpha * dropMix;
-        p.strokeWeight(theme.stroke.hover);
-        p.circle(g.cx, g.cy, g.R * theme.donut.groupRing * 2);
-        ctx2d(p).globalAlpha = prev;
       }
     }
 
@@ -729,17 +939,17 @@ export class ExploreScene implements Scene {
           x: lerp(ret.fromOffset.x, 0, t),
           y: lerp(ret.fromOffset.y, 0, t),
         },
-        alpha: lerp(0.8, 1, t),
+        alpha: 1,
       };
     }
-    if (!this.pointer) return { offset: { x: 0, y: 0 }, alpha: 0.8 };
+    if (!this.pointer) return { offset: { x: 0, y: 0 }, alpha: 1 };
     const at = screenToWorld(this.camera, ctx.viewport, this.pointer);
     return {
       offset: {
         x: at.x - drag.grab.x - home.x,
         y: at.y - drag.grab.y - home.y,
       },
-      alpha: 0.8,
+      alpha: 1,
     };
   }
 
@@ -821,6 +1031,10 @@ export class ExploreScene implements Scene {
   }
 
   private selectionLabel(ctx: SceneContext): string | null {
+    if (this.transition?.kind === 'leave-selection' && this.transition.anchorId) {
+      if (this.transition.nextMorph) return null;
+      return ctx.data.countryById.get(this.transition.anchorId)?.name ?? null;
+    }
     const [only] = ctx.state.selection;
     if (ctx.state.selection.length !== 1 || !only) return null;
     if (only.kind === 'country') return ctx.data.countryById.get(only.id)?.name ?? null;
@@ -831,15 +1045,26 @@ export class ExploreScene implements Scene {
     return this.selectionGeometryFrom(ctx, ctx.state.selection);
   }
 
+  private placeTransitionDonut(ctx: SceneContext, g: DonutGeometry): DonutGeometry {
+    if (this.transition?.kind !== 'enter-selection' || !this.transition.anchorId) return g;
+    const node = this.nodes.find((n) => n.countryId === this.transition?.anchorId);
+    if (!node) return g;
+    const screen = worldToScreen(this.camera, ctx.viewport, node);
+    return mapDonut(g, screen.x, screen.y, g.R);
+  }
+
   private drawSelection(ctx: SceneContext, now: number): void {
     const { state, p } = ctx;
     const morphing = this.transition && !this.transition.morph.done(now);
-    const g = morphing ? this.transition!.morph.current(now) : this.selectionGeometry(ctx);
+    const rawG = morphing ? this.transition!.morph.current(now) : this.selectionGeometry(ctx);
+    const g = morphing ? this.placeTransitionDonut(ctx, rawG) : rawG;
     if (!morphing) this.shownGeom = g;
     const label = this.selectionLabel(ctx);
     const scale = overviewZoom(ctx.viewport);
     const type = this.fontScale(ctx);
     const hover = this.hoverStyle(ctx, g.countryIds);
+    const showBrackets =
+      this.transition?.kind !== 'enter-selection' && this.transition?.kind !== 'leave-selection';
     const id = `view:${encodeSelection(state.selection)}:${Math.round(g.R)}`;
 
     // Leaving selection draws the morph in screen space over the fading overview.
@@ -849,6 +1074,8 @@ export class ExploreScene implements Scene {
       drawDonut(p, g, {
         ...this.bodyStyle(ctx, 1, detailLevel(g.R), label, scale, type),
         ...hover,
+        hoverInfo: true,
+        brackets: showBrackets,
       });
       p.pop();
       return;
@@ -859,6 +1086,8 @@ export class ExploreScene implements Scene {
       drawDonut(p, g, {
         ...this.bodyStyle(ctx, 1, detailLevel(g.R), label, scale, type),
         ...hover,
+        hoverInfo: true,
+        brackets: showBrackets,
       });
       return;
     }
@@ -1043,8 +1272,8 @@ export class ExploreScene implements Scene {
     if (s.drag && s.moved) {
       if (this.dropTarget) {
         const target = this.dropTarget;
-        const pose = this.currentLiftOffset(ctx, s.drag);
-        this.dropGhost = { drag: s.drag, offset: pose, startMs: performance.now() };
+        this.dropGhost = null;
+        this.droppedDrag = s.drag;
         this.pendingDropAnchor = target;
         if (s.drag.kind === 'city') {
           ctx.actions.selectCountryWithCity(target, s.drag.cityId);

@@ -1,6 +1,7 @@
 /** Low-level p5 drawing helpers. Callers set fill/stroke; these only build shapes. */
 import type p5 from 'p5';
 import type { GuideStyle } from '../../config/encoding';
+import { theme } from '../../config/theme';
 import type { Rect } from '../geometry';
 
 export function ctx2d(p: p5): CanvasRenderingContext2D {
@@ -72,7 +73,7 @@ export function drawMarsSymbol(p: p5, x: number, y: number, size: number, lineSc
   p.noFill();
   p.strokeCap(p.ROUND);
   p.strokeJoin(p.ROUND);
-  p.strokeWeight(Math.max(1, lineScale));
+  p.strokeWeight(theme.detail.genderSymbolStroke * lineScale);
   p.circle(x, y, r * 2);
   const sx = x + r * 0.65;
   const sy = y - r * 0.65;
@@ -91,7 +92,7 @@ export function drawVenusSymbol(p: p5, x: number, y: number, size: number, lineS
   p.noFill();
   p.strokeCap(p.ROUND);
   p.strokeJoin(p.ROUND);
-  p.strokeWeight(Math.max(1, lineScale));
+  p.strokeWeight(theme.detail.genderSymbolStroke * lineScale);
   p.circle(x, cy, r * 2);
   const barY = cy + r + r * 0.35;
   p.line(x, cy + r, x, barY + r * 0.5);
@@ -113,49 +114,95 @@ export function tangentialTick(
   p.line(px - tx * halfLen, py - ty * halfLen, px + tx * halfLen, py + ty * halfLen);
 }
 
-/** Run `body` with drawing clipped to an annular sector. */
-export function withSectorClip(
-  p: p5,
-  sector: { cx: number; cy: number; r0: number; r1: number; a0: number; a1: number },
-  body: () => void,
-): void {
-  const ctx = ctx2d(p);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(sector.cx, sector.cy, sector.r1, sector.a0, sector.a1);
-  ctx.arc(sector.cx, sector.cy, sector.r0, sector.a1, sector.a0, true);
-  ctx.closePath();
-  ctx.clip();
-  body();
-  ctx.restore();
+/**
+ * Cached repeating line pattern. One fill replaces a clip plus hundreds of strokes
+ * (Firefox reapplies a non-rectangular clip on every stroke).
+ */
+const hatchTiles = new Map<string, CanvasPattern>();
+
+function hatchPattern(
+  ctx: CanvasRenderingContext2D,
+  spacing: number,
+  lineWidth: number,
+  angle: number,
+  color: string,
+): CanvasPattern | null {
+  const step = Math.max(1, spacing);
+  const weight = Math.max(0.5, lineWidth);
+  const key = `${step.toFixed(2)}|${weight.toFixed(2)}|${angle.toFixed(4)}|${color}`;
+  const hit = hatchTiles.get(key);
+  if (hit) return hit;
+
+  const size = Math.ceil(step);
+  const tile = document.createElement('canvas');
+  tile.width = size;
+  tile.height = size;
+  const t = tile.getContext('2d');
+  if (!t) return null;
+  t.strokeStyle = color;
+  t.lineWidth = weight;
+  t.lineCap = 'butt';
+  t.beginPath();
+  // Horizontal stripe; the pattern matrix rotates it to `angle`.
+  t.moveTo(0, size / 2);
+  t.lineTo(size, size / 2);
+  t.stroke();
+
+  const pattern = ctx.createPattern(tile, 'repeat');
+  if (!pattern) return null;
+  if (typeof pattern.setTransform === 'function') {
+    const matrix = new DOMMatrix().rotate((angle * 180) / Math.PI);
+    pattern.setTransform(matrix);
+  }
+  hatchTiles.set(key, pattern);
+  return pattern;
 }
 
-export function withRectClip(p: p5, rect: Rect, body: () => void): void {
-  const ctx = ctx2d(p);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(rect.x, rect.y, rect.w, rect.h);
-  ctx.clip();
-  body();
-  ctx.restore();
-}
-
-/** Parallel lines at `angle` covering a circle of `extent` around (cx, cy). Use inside a clip. */
-export function hatchLines(
+/** Fill an annular sector with the hatch pattern. No clip. */
+export function hatchAnnularSector(
   p: p5,
   cx: number,
   cy: number,
-  extent: number,
+  r0: number,
+  r1: number,
+  a0: number,
+  a1: number,
   spacing: number,
+  lineWidth: number,
   angle: number,
+  color: string,
 ): void {
-  const dx = Math.cos(angle);
-  const dy = Math.sin(angle);
-  for (let t = -extent; t <= extent; t += spacing) {
-    const ox = cx - dy * t;
-    const oy = cy + dx * t;
-    p.line(ox - dx * extent, oy - dy * extent, ox + dx * extent, oy + dy * extent);
-  }
+  if (spacing <= 0 || a1 <= a0) return;
+  const ctx = ctx2d(p);
+  const pattern = hatchPattern(ctx, spacing, lineWidth, angle, color);
+  if (!pattern) return;
+  ctx.save();
+  ctx.fillStyle = pattern;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r1, a0, a1);
+  ctx.arc(cx, cy, r0, a1, a0, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Fill a rectangle with the hatch pattern. No clip. */
+export function hatchRect(
+  p: p5,
+  rect: Rect,
+  spacing: number,
+  lineWidth: number,
+  angle: number,
+  color: string,
+): void {
+  if (spacing <= 0 || rect.w <= 0 || rect.h <= 0) return;
+  const ctx = ctx2d(p);
+  const pattern = hatchPattern(ctx, spacing, lineWidth, angle, color);
+  if (!pattern) return;
+  ctx.save();
+  ctx.fillStyle = pattern;
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
 }
 
 export interface TextRun {

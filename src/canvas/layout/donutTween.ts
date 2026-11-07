@@ -61,26 +61,39 @@ export function interpolateDonut(from: DonutGeometry, to: DonutGeometry, t: numb
   const toById = indexSegments(to.segments);
   const fromOrder = from.segments.map((s) => s.cityId);
   const toOrder = to.segments.map((s) => s.cityId);
+  const fromWhole = wholeCountryIds(from);
+  const toWhole = wholeCountryIds(to);
+  // A standalone city selection replaced by its whole country exits instead of morphing in place.
+  const survivors = new Set(
+    from.segments
+      .filter(
+        (seg) =>
+          toById.has(seg.cityId) && !(toWhole.has(seg.countryId) && !fromWhole.has(seg.countryId)),
+      )
+      .map((seg) => seg.cityId),
+  );
 
   const segments: Segment[] = [];
-  // First survivor in the old ring keeps its a0 so the 12 o'clock edge does not slide.
-  const pinnedA0 = fromOrder.find((id) => toById.has(id)) ?? null;
+  // First segment keeps its a0 when it remains first, so the 12 o'clock edge does not slide.
+  const firstId = fromOrder[0];
+  const pinnedA0 =
+    firstId !== undefined && firstId === toOrder[0] && survivors.has(firstId) ? firstId : null;
 
   for (const id of toOrder) {
     const dest = toById.get(id)!;
-    const src = fromById.get(id);
+    const src = survivors.has(id) ? fromById.get(id) : undefined;
     if (src) {
       segments.push(lerpSegment(src, dest, t, id === pinnedA0));
     } else {
-      const origin = enterAngle(id, from, to, fromOrder, toOrder, fromById);
+      const origin = enterAngle(id, from, toOrder, survivors, fromById);
       segments.push(growSegment(dest, origin, t, from, to));
     }
   }
 
-  for (const id of fromOrder) {
-    if (toById.has(id)) continue;
-    const src = fromById.get(id)!;
-    const origin = exitAngle(id, from, to, fromOrder, toOrder, toById);
+  for (let idx = 0; idx < from.segments.length; idx++) {
+    const src = from.segments[idx]!;
+    if (survivors.has(src.cityId) && fromById.get(src.cityId) === src) continue;
+    const origin = exitAngle(idx, to, fromOrder, survivors, toById);
     segments.push(shrinkSegment(src, origin, t, from, to));
   }
 
@@ -117,6 +130,10 @@ function indexSegments(segments: Segment[]): Map<string, Segment> {
   return new Map(segments.map((s) => [s.cityId, s]));
 }
 
+function wholeCountryIds(g: DonutGeometry): Set<string> {
+  return new Set(g.groups.filter((gr) => gr.bracket !== false).map((gr) => gr.countryId));
+}
+
 function midAngle(seg: Segment): number {
   return (seg.a0 + seg.a1) / 2;
 }
@@ -125,53 +142,47 @@ function midAngle(seg: Segment): number {
 function enterAngle(
   cityId: string,
   from: DonutGeometry,
-  _to: DonutGeometry,
-  fromOrder: string[],
   toOrder: string[],
+  survivors: ReadonlySet<string>,
   fromById: Map<string, Segment>,
 ): number {
+  if (from.segments.length === 0) return START_ANGLE;
   const idx = toOrder.indexOf(cityId);
+  const hasSurvivorAfter = toOrder.slice(idx + 1).some((id) => survivors.has(id));
+  if (!hasSurvivorAfter) {
+    return START_ANGLE + TAU - gap / 2;
+  }
   for (let i = idx - 1; i >= 0; i--) {
     const prevId = toOrder[i]!;
-    if (!fromById.has(prevId)) continue;
+    if (!survivors.has(prevId)) continue;
     const prev = fromById.get(prevId)!;
     return prev.a1 + gap / 2;
   }
-  // Appended at the end, or the first new city with no survivor before it: grow from 12 o'clock.
-  if (from.segments.length === 0) return START_ANGLE;
-  const lastFrom = from.segments[from.segments.length - 1]!;
-  // Prefer the open slit before 12 o'clock when the new city sits after every survivor.
-  const survivorsBefore = toOrder.slice(0, idx).filter((id) => fromById.has(id));
-  if (survivorsBefore.length === fromOrder.length) {
-    return START_ANGLE + TAU - gap / 2;
-  }
-  return lastFrom.a1 + gap / 2;
+  return START_ANGLE + TAU - gap / 2;
 }
 
-/** Angle in `to` where an exiting city collapses (after its preceding survivor). */
+/** Angle in `to` where an exiting city collapses (after its preceding survivor, or 12 o'clock ccw). */
 function exitAngle(
-  cityId: string,
-  _from: DonutGeometry,
+  idx: number,
   to: DonutGeometry,
   fromOrder: string[],
-  _toOrder: string[],
+  survivors: ReadonlySet<string>,
   toById: Map<string, Segment>,
 ): number {
-  const idx = fromOrder.indexOf(cityId);
   for (let i = idx - 1; i >= 0; i--) {
     const prevId = fromOrder[i]!;
-    if (!toById.has(prevId)) continue;
+    if (!survivors.has(prevId)) continue;
     const prev = toById.get(prevId)!;
     return prev.a1 + gap / 2;
   }
   for (let i = idx + 1; i < fromOrder.length; i++) {
     const nextId = fromOrder[i]!;
-    if (!toById.has(nextId)) continue;
+    if (!survivors.has(nextId)) continue;
     const next = toById.get(nextId)!;
     return next.a0 - gap / 2;
   }
   if (to.segments.length === 0) return START_ANGLE;
-  return START_ANGLE + TAU - gap / 2;
+  return START_ANGLE;
 }
 
 function lerpSegment(src: Segment, dest: Segment, t: number, pinA0: boolean): Segment {
@@ -261,7 +272,7 @@ function lerpGroups(from: GroupArc[], to: GroupArc[], t: number): GroupArc[] {
   for (const id of ids) {
     const a = fromById.get(id);
     const b = toById.get(id);
-    if (a && b) {
+    if (a && b && !(a.bracket === false && b.bracket !== false)) {
       out.push({
         countryId: id,
         label: t < 0.5 ? a.label : b.label,
@@ -270,7 +281,7 @@ function lerpGroups(from: GroupArc[], to: GroupArc[], t: number): GroupArc[] {
         a1: lerp(a.a1, b.a1, t),
       });
     } else if (b) {
-      const origin = a ? a.a0 : b.a0;
+      const origin = b.a1;
       out.push({
         ...b,
         a0: lerp(origin, b.a0, t),

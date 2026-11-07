@@ -16,14 +16,12 @@ import {
   annularSector,
   arcText,
   ctx2d,
-  hatchLines,
+  hatchAnnularSector,
   radialLine,
   ringOutline,
   setDash,
   drawMarsSymbol,
   drawVenusSymbol,
-  roundRectFill,
-  withSectorClip,
   type TextRun,
 } from './shapes';
 
@@ -50,8 +48,13 @@ export interface DonutStyle {
   zoom: number;
   /** `mark` skips hatch and arc labels when the donut is small on screen. */
   detail: DetailLevel;
-  /** Hovered city: darker band, info along the arc or in the centre. Other segments lighten. */
+  /** Hovered city: darker band. Other segments lighten. */
   hoverCityId: string | null;
+  /**
+   * Draw the people / commuter hover copy for `hoverCityId`. Select view turns this on
+   * and always places the copy in the hole; overview leaves it off.
+   */
+  hoverInfo: boolean;
   /** Whole donut is hovered: darker band on every segment. */
   hoverCountry: boolean;
   /**
@@ -85,6 +88,8 @@ export interface DonutStyle {
   alpha: number;
   /** City left out of this draw, because it is being dragged elsewhere. */
   omitCityId: string | null;
+  /** Draw outer country brackets on combined donuts. */
+  brackets: boolean;
 }
 
 export const defaultDonutStyle: DonutStyle = {
@@ -93,6 +98,7 @@ export const defaultDonutStyle: DonutStyle = {
   zoom: 1,
   detail: 'full',
   hoverCityId: null,
+  hoverInfo: false,
   hoverCountry: false,
   sectorFilter: null,
   label: null,
@@ -101,6 +107,7 @@ export const defaultDonutStyle: DonutStyle = {
   genderScale: 1,
   alpha: 1,
   omitCityId: null,
+  brackets: true,
 };
 
 function centerLabelScale(s: DonutStyle): number {
@@ -114,22 +121,24 @@ export function drawDonut(p: p5, g: DonutGeometry, style: Partial<DonutStyle> = 
   p.textFont(theme.font.family);
   ctx.globalAlpha = s.alpha;
   drawGuides(p, g, s.lineScale);
-  const hovered = g.segments.find(
-    (seg) => seg.cityId === s.hoverCityId && seg.cityId !== s.omitCityId,
-  );
-  const hover = hovered ? layoutHover(p, hovered, s.textScale, s.lineScale) : null;
-  const segmentStyle = { ...s, hoverLabelOnSegment: hover?.place === 'center' };
+  const hovered =
+    s.hoverInfo && s.hoverCityId
+      ? g.segments.find((seg) => seg.cityId === s.hoverCityId && seg.cityId !== s.omitCityId)
+      : undefined;
+  const hover = hovered
+    ? { ...layoutHover(p, hovered, s.textScale, s.lineScale), place: 'center' as const }
+    : null;
   for (const seg of g.segments) {
     if (seg.cityId === s.omitCityId) continue;
     ctx.globalAlpha = s.alpha;
-    drawSegment(p, g, seg, segmentStyle);
+    drawSegment(p, g, seg, s);
   }
   ctx.globalAlpha = s.alpha;
   drawEllipsis(p, g, s.lineScale);
-  if (g.groups.length > 1) drawGroupBrackets(p, g, s);
-  if (s.label && hover?.place !== 'center') {
+  if (s.brackets && g.groups.length > 1) drawGroupBrackets(p, g, s);
+  if (s.label && !hover) {
     drawCenterLabel(p, g, s.label, centerLabelScale(s), s.lineScale);
-  } else if (s.label && hover?.place === 'center') {
+  } else if (s.label && hover) {
     const reveal = s.hoverRevealMs ?? 0;
     const fade = Math.max(0, 1 - reveal / Math.max(1, theme.motion.wordFadeMs));
     if (fade > 0.01) {
@@ -189,16 +198,22 @@ function lighten(hex: string, t: number): string {
   return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
 }
 
-/** Mix two hex colours. `t` is 0 for `a` and 1 for `b`. */
+function toHex(n: number): string {
+  return Math.max(0, Math.min(255, Math.round(n)))
+    .toString(16)
+    .padStart(2, '0');
+}
+
+/** Mix two hex colours. `t` is 0 for `a` and 1 for `b`. Returns `#rrggbb` so `lighten` can chain it. */
 function mixHex(a: string, b: string, t: number): string {
   const na = Number.parseInt(a.slice(1), 16);
   const nb = Number.parseInt(b.slice(1), 16);
   const channel = (shift: number) => {
     const va = (na >> shift) & 255;
     const vb = (nb >> shift) & 255;
-    return Math.round(va + (vb - va) * t);
+    return toHex(va + (vb - va) * t);
   };
-  return `rgb(${channel(16)}, ${channel(8)}, ${channel(0)})`;
+  return `#${channel(16)}${channel(8)}${channel(0)}`;
 }
 
 export function drawGuides(p: p5, g: DonutGeometry, lineScale: number): void {
@@ -279,13 +294,20 @@ export function drawSegment(
   annularSector(p, g.cx, g.cy, seg.r0, seg.r1, seg.a0, seg.a1, step);
 
   if (s.detail === 'full' && seg.hatchA1 !== null && seg.hatchA1 > seg.a0) {
-    const area = { cx: g.cx, cy: g.cy, r0: seg.r0, r1: seg.r1, a0: seg.a0, a1: seg.hatchA1 };
-    const mid = polar(g.cx, g.cy, (seg.r0 + seg.r1) / 2, (seg.a0 + seg.hatchA1) / 2);
-    withSectorClip(p, area, () => {
-      p.stroke(c.ink);
-      p.strokeWeight(line);
-      hatchLines(p, mid.x, mid.y, seg.r1, px.hatchSpacing * s.lineScale, px.hatchAngle);
-    });
+    hatchAnnularSector(
+      p,
+      g.cx,
+      g.cy,
+      seg.r0,
+      seg.r1,
+      seg.a0,
+      seg.hatchA1,
+      px.hatchSpacing * s.lineScale,
+      line,
+      px.hatchAngle,
+      c.ink,
+    );
+    p.stroke(c.ink);
     p.strokeWeight(line);
     radialLine(p, g.cx, g.cy, seg.r0, seg.r1, seg.hatchA1);
   }
@@ -302,8 +324,7 @@ export function drawSegment(
   if (seg.genderA !== null && s.genderMark !== false) {
     drawGender(p, g, seg, genderScaleOf(s), s.textScale, s.details && roomForLabels);
   }
-  const showName =
-    s.omitCityName !== true && (s.hoverCityId !== seg.cityId || s.hoverLabelOnSegment === true);
+  const showName = s.omitCityName !== true;
   if (s.details && roomForLabels && showName) {
     p.noStroke();
     p.fill(c.ink);
@@ -418,15 +439,16 @@ function drawGenderLabel(
   const pillW = textW + pill.padX * 2;
   const gap = pillClearance(layout.inward, pillW, pill.height, 3 * lineScale);
   const pillCenter = shift(layout.leaderEnd, layout.inward, gap);
+  const tick = genderTick(lineScale);
   const symbolAt = shift(
-    shift(layout.leaderEnd, layout.inward, -symSize * 0.2),
+    shift(layout.leaderEnd, layout.inward, -tick * (1 - px.genderSymbolInward)),
     layout.lateral,
     layout.side * (symSize * 0.7 + 4 * textScale),
   );
 
   p.stroke(c.ink);
   if (share === 0.5) {
-    drawGenderPill(p, label, pillCenter.x, pillCenter.y, pill);
+    drawGenderText(p, label, pillCenter.x, pillCenter.y);
     drawVenusSymbol(p, symbolAt.x - 8 * textScale, symbolAt.y, symSize, lineScale);
     drawMarsSymbol(p, symbolAt.x + 8 * textScale, symbolAt.y, symSize, lineScale);
     return;
@@ -434,25 +456,12 @@ function drawGenderLabel(
 
   if (share > 0.5) drawMarsSymbol(p, symbolAt.x, symbolAt.y, symSize, lineScale);
   else drawVenusSymbol(p, symbolAt.x, symbolAt.y, symSize, lineScale);
-  drawGenderPill(p, label, pillCenter.x, pillCenter.y, pill);
+  drawGenderText(p, label, pillCenter.x, pillCenter.y);
 }
 
-function drawGenderPill(
-  p: p5,
-  text: string,
-  cx: number,
-  cy: number,
-  pill: { height: number; padX: number; radius: number },
-): void {
+function drawGenderText(p: p5, text: string, cx: number, cy: number): void {
   p.textFont(theme.font.family);
-  const textW = p.textWidth(text);
-  const w = textW + pill.padX * 2;
-  const h = pill.height;
-  const x = cx - w / 2;
-  const y = cy - h / 2;
   p.noStroke();
-  p.fill(c.paper);
-  roundRectFill(p, x, y, w, h, pill.radius);
   p.fill(c.ink);
   p.textAlign(p.CENTER, p.CENTER);
   p.text(text, cx, cy);
@@ -558,17 +567,20 @@ function textSpanWidth(p: p5, text: string): number {
 /**
  * The hover lines for one city: "**Paris** has 5'172'658 working people" and,
  * when known, "commuter-rate of 30%". `paint` draws them after the segment.
+ * Pass `place: 'center'` to keep the copy in the hole (legend).
  */
 export function segmentHover(
   p: p5,
   seg: Segment,
   textScale: number,
   lineScale = 1,
+  place: 'arc' | 'center' | 'auto' = 'auto',
 ): { place: 'arc' | 'center'; paint: (g: DonutGeometry) => void } {
   const layout = layoutHover(p, seg, textScale, lineScale);
+  const resolved = place === 'auto' ? layout : { ...layout, place };
   return {
-    place: layout.place,
-    paint: (g) => drawHoverInfo(p, g, layout, textScale, Number.POSITIVE_INFINITY),
+    place: resolved.place,
+    paint: (g) => drawHoverInfo(p, g, resolved, textScale, Number.POSITIVE_INFINITY),
   };
 }
 

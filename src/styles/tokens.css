@@ -33,9 +33,10 @@
   --fs-title: 38px;
   --lh-title: 32px;
 
-  --line-width: calc(1px * var(--type-scale));
+  --line-width: max(1px, calc(1px * var(--type-scale)));
   --line: var(--line-width) solid var(--c-ink);
   --strip-width: calc(24px * var(--type-scale));
+  --strip-hover-expand: calc(8px * var(--type-scale));
   --panel-width: calc(127px * var(--type-scale));
   --pad: calc(16px * var(--type-scale));
   --gap: calc(8px * var(--type-scale));

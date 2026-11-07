@@ -47,6 +47,8 @@ export function createActions(store: Store<AppState>) {
     },
     toggleLegend(open?: boolean) {
       set((s) => {
+        // Canvas legend only exists in selection view.
+        if (s.selection.length === 0) return { legendOpen: false };
         const legendOpen = open ?? !s.legendOpen;
         return legendOpen ? { legendOpen, hover: NO_HOVER } : { legendOpen };
       });
@@ -63,21 +65,34 @@ export function createActions(store: Store<AppState>) {
       set((s) => ({ sectorFilter: s.sectorFilter === null ? 'none' : null }));
     },
     toggleCountry(countryId: string, cityIds: readonly string[] = []) {
-      set((s) => ({
-        selection: toggleCountryPart(s.selection, countryId, cityIds),
-        hover: NO_HOVER,
-      }));
+      set((s) => {
+        const selection = toggleCountryPart(s.selection, countryId, cityIds);
+        return {
+          selection,
+          hover: NO_HOVER,
+          ...(selection.length === 0 ? { legendOpen: false } : {}),
+        };
+      });
     },
     toggleCity(cityId: string, countryId: string) {
-      set((s) => ({
-        selection: toggleCityPart(s.selection, cityId, countryId),
-        hover: NO_HOVER,
-      }));
+      set((s) => {
+        const selection = toggleCityPart(s.selection, cityId, countryId);
+        return {
+          selection,
+          hover: NO_HOVER,
+          ...(selection.length === 0 ? { legendOpen: false } : {}),
+        };
+      });
     },
     selectCountries(countryIds: string[]) {
+      const selection = [...new Set(countryIds)].map((id) => ({
+        kind: 'country' as const,
+        id,
+      }));
       set({
-        selection: [...new Set(countryIds)].map((id) => ({ kind: 'country' as const, id })),
+        selection,
         hover: NO_HOVER,
+        ...(selection.length === 0 ? { legendOpen: false } : {}),
       });
     },
     /** Focus view of one city, without the rest of its country. */
@@ -98,7 +113,7 @@ export function createActions(store: Store<AppState>) {
       });
     },
     clearSelection() {
-      set({ selection: [], hover: NO_HOVER });
+      set({ selection: [], hover: NO_HOVER, legendOpen: false });
     },
     setCitySearch(query: string) {
       set((s) => ({ sidebar: { ...s.sidebar, citySearch: query } }));

@@ -57,22 +57,11 @@ export function createCityList({ data, actions }: UiContext): Component {
   });
   search.addEventListener('input', () => actions.setCitySearch(search.value));
 
-  const clear = h(
-    'button',
-    {
-      class: 'clear-selection',
-      'data-testid': 'clear-selection',
-      hidden: true,
-      onclick: () => actions.clearSelection(),
-    },
-    'remove all selections',
-  );
   const list = h('ul', { class: 'country-list', 'data-testid': 'city-list' });
   const el = h(
     'section',
     { class: 'panel-section panel-section--grow', 'aria-label': 'Cities' },
     search,
-    clear,
     list,
   );
 
@@ -130,7 +119,6 @@ export function createCityList({ data, actions }: UiContext): Component {
   return {
     el,
     update(state, previous) {
-      clear.hidden = state.selection.length === 0;
       if (search.value !== state.sidebar.citySearch) search.value = state.sidebar.citySearch;
       if (
         previous &&

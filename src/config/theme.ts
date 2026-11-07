@@ -75,11 +75,14 @@ export const theme = {
     hatchSpacing: 12,
     /** Hatch direction in radians (Figma line pattern ~45 deg). */
     hatchAngle: Math.PI / 4,
-    genderTick: 14,
+    genderTick: 24,
     /** Figma 347:6710 / 381:7173 white pill behind the percent. */
     genderPill: { height: 22, padX: 4, radius: 10 },
-    /** Figma Group 11 / 12 icon size in px. */
+    /** Figma Group 11 / 12 icon size in px, and its stroke weight in design px. */
     genderSymbolSize: 10,
+    genderSymbolStroke: 2,
+    /** Inward offset of the gender symbol from the segment's inner edge, as a fraction of the tick. */
+    genderSymbolInward: 0.75,
     /** Diameter of one dot in the single-city ellipsis, px. */
     ellipsisDot: 3,
     labelOffset: 6,
@@ -129,6 +132,8 @@ export const theme = {
     wordFadeMs: 180,
     /** Dragged country / city returning to its home slot. */
     returnMs: 420,
+    /** Camera pan to the selected country before entering selection mode. */
+    panMs: 380,
     /** Share of the morph during which a dropped ghost fades out. */
     ghostFadeShare: 0.33,
     /** Sidebar panel and info-section accordion. */
@@ -158,7 +163,10 @@ export const theme = {
     arcStepCoarse: 0.15,
     /** World units added around a donut when culling, so labels are not cut off. */
     labelPad: 48,
-    /** Offscreen picture side above which the donut is drawn live instead. */
+    /**
+     * Offscreen label-buffer side in CSS px (density 1). A larger ring's labels
+     * bake into this size and scale up on blit.
+     */
     pictureMaxSide: 1024,
   },
   /**

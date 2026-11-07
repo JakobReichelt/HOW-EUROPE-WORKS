@@ -1,6 +1,6 @@
 /* Strip + sidebar (Figma 332:836, 347:6230, 288:10567). */
 
-/* ---- 24px strip with vertical text ---- */
+/* ---- 24px intro strip with vertical text ---- */
 
 .sidebar-strip {
   flex: none;
@@ -13,7 +13,6 @@
   border-right: var(--line);
   background: var(--c-paper);
   overflow: hidden;
-  transition: width var(--motion-accordion) var(--ease);
 }
 
 .sidebar-strip--intro {
@@ -21,11 +20,16 @@
   top: 0;
   bottom: 0;
   left: 0;
+  transform: translateX(-100%);
+  transition: transform var(--motion-accordion) var(--ease);
+}
+
+.sidebar-strip--intro.is-in {
+  transform: translateX(0);
 }
 
 .sidebar-strip__title,
-.sidebar-strip__mode,
-.sidebar-strip__label {
+.sidebar-strip__mode {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   white-space: nowrap;
@@ -41,16 +45,25 @@
   color: var(--c-muted);
 }
 
-/* ---- sidebar shell ---- */
+/* ---- sidebar shell: two accordion rectangles side by side ---- */
 
+/*
+ * Slide with `left`, not `transform`. A settled translateX(0) keeps a composited
+ * layer that clips edge-mark dots hanging past the panel border into the canvas.
+ */
 .sidebar {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
-  width: calc(var(--strip-width) + var(--panel-width));
+  left: calc(-1 * (var(--strip-width) + var(--panel-width)));
+  min-width: calc(var(--strip-width) + var(--panel-width));
   display: flex;
   background: var(--c-paper);
+  transition: left var(--motion-accordion) var(--ease);
+}
+
+.sidebar.is-in {
+  left: 0;
 }
 
 .sidebar--legend-locked {
@@ -58,107 +71,279 @@
 }
 
 /*
- * Right border sits on the panel edge. Interaction marks are centred on it and hang
- * into the canvas: the scroller grows by --mark-bleed, then a negative margin keeps
- * the sidebar width, and that bleed stays transparent so there is no paper stripe.
- * The marks stay inside the padding edge, which is what a vertical scroller can show.
+ * Each sidebar section (#panel-info and #panel-interaction) is a single rectangle
+ * with its own full-height right border. Folded = 24px (--strip-width); open = 127px (--panel-width).
+ * The heading inside each panel is the same persistent DOM element in both states.
  */
 .panel {
+  position: relative;
   flex: none;
-  width: var(--panel-width);
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  width: var(--strip-width);
   border-right: var(--line);
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-  transition:
-    width var(--motion-accordion) var(--ease),
-    margin-right var(--motion-accordion) var(--ease),
-    padding-right var(--motion-accordion) var(--ease);
+  background: var(--c-paper);
+  overflow: hidden;
+  transition: width var(--motion-accordion) var(--ease);
 }
 
-/* Content keeps its open width while the panel grows or shrinks, so nothing reflows. */
-.panel > * {
-  flex-shrink: 0;
+.panel[data-open='false']:hover,
+.panel[data-open='false']:focus-within {
+  width: calc(var(--strip-width) + var(--strip-hover-expand));
+}
+
+.panel[data-open='true'] {
   width: var(--panel-width);
+}
+
+/* Allow the active/hover edge-mark dots on the right border to hang into the canvas. */
+.panel--interaction[data-open='true'] {
+  overflow: visible;
+  clip-path: inset(0 calc(-1 * var(--mark-bleed)) 0 0);
+}
+
+/* Full-rectangle hit button active only when the section is folded in. */
+.panel-trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.panel[data-open='true'] > .panel-trigger {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Content column stays visible at all times so the header text is the exact same element. */
+.panel-content {
+  width: calc(var(--panel-width) - var(--line-width));
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.panel[data-open='true'] > .panel-content {
+  overflow-y: auto;
+}
+
+.panel--interaction > .panel-content {
+  width: calc(var(--panel-width) - var(--line-width) + var(--mark-bleed));
+  padding-right: var(--mark-bleed);
 }
 
 /*
- * Horizontal accordion. DOM order is [info strip][Info][interaction strip][Interaction]:
- * the clicked strip collapses while its own panel grows out of the same spot, and the
- * other panel folds back into its strip.
+ * Persistent header inside each rectangle. Do not give .panel-header a background or z-index
+ * that would paint over the parent .panel's full-height right border.
  */
-.sidebar[data-panel='interaction'] #panel-info,
-.sidebar[data-panel='info'] #panel-interaction {
-  width: 0;
-  border-right-width: 0;
-  pointer-events: none;
-}
-
-.sidebar[data-panel='interaction'] .sidebar-strip--end,
-.sidebar[data-panel='info'] .sidebar-strip:not(.sidebar-strip--end) {
-  width: 0;
-  border-right-width: 0;
-  pointer-events: none;
-}
-
-.sidebar[data-panel='interaction'] #panel-interaction {
-  width: calc(var(--panel-width) + var(--mark-bleed));
-  margin-right: calc(-1 * var(--mark-bleed));
-  padding-right: var(--mark-bleed);
-  border-right: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(var(--c-ink), var(--c-ink)), linear-gradient(var(--c-paper), var(--c-paper));
-  background-size:
-    var(--line-width) 100%,
-    var(--panel-width) 100%;
-  background-position:
-    right var(--mark-bleed) top,
-    left top;
-  background-repeat: no-repeat;
-}
-
-.sidebar[data-panel='interaction'] #panel-interaction > * {
-  pointer-events: auto;
-}
-
 .panel-header {
+  position: relative;
   flex: none;
+  width: 100%;
   min-height: var(--header-height);
   display: flex;
   align-items: flex-start;
-  padding: var(--pad);
-  border-bottom: var(--line);
+  padding: var(--pad) calc((var(--strip-width) - var(--lh-xs)) / 2);
+  border-bottom: var(--line-width) solid transparent;
   overflow: visible;
+  transition:
+    padding-left var(--motion-accordion) var(--ease),
+    border-bottom-color var(--motion-accordion) var(--ease);
 }
 
+.panel[data-open='false']:hover .panel-header,
+.panel[data-open='false']:focus-within .panel-header {
+  padding-left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs)) / 2);
+}
+
+.panel[data-open='true'] .panel-header {
+  padding-left: var(--pad);
+  border-bottom-color: var(--c-ink);
+}
+
+/*
+ * Interaction header: one persistent <h2> element.
+ * Folded (data-open="false"): 14px regular with down arrow ("↓ Interaction").
+ * Open (data-open="true"): 18px bold ("Interaction").
+ */
 .panel-header__title {
   margin: 0;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+  white-space: nowrap;
+  font-size: calc(var(--fs-xs) * var(--type-scale));
+  line-height: calc(var(--lh-xs) * var(--type-scale));
+  font-weight: 400;
+  transition:
+    font-size var(--motion-accordion) var(--ease),
+    line-height var(--motion-accordion) var(--ease),
+    font-weight var(--motion-accordion) var(--ease);
+}
+
+.panel[data-open='true'] .panel-header__title {
   font-size: calc(var(--fs-s) * var(--type-scale));
   line-height: calc(var(--lh-s) * var(--type-scale));
   font-weight: 700;
 }
 
+.panel-header__arrow {
+  display: inline-block;
+  max-height: calc(20px * var(--type-scale));
+  opacity: 1;
+  overflow: hidden;
+  vertical-align: top;
+  transition:
+    max-height var(--motion-accordion) var(--ease),
+    opacity var(--motion-accordion) var(--ease);
+}
+
+.panel[data-open='true'] .panel-header__arrow {
+  max-height: 0;
+  opacity: 0;
+}
+
+/*
+ * Info header: one persistent <h2 class="panel-header__big"> with 3 <span>s (HOW / EUROPE / WORKS).
+ * Folded (data-open="false"): 15px bold single vertical line + mode label below it.
+ * Open (data-open="true"): 38px bold 3-column vertical title with no extra gap below.
+ */
 .panel-header--title {
+  min-height: 0;
   height: auto;
 }
 
 .panel-header__big {
   margin: 0;
+  height: calc(166px * var(--type-scale));
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+  font-size: calc(15px * var(--type-scale));
+  line-height: calc(16px * var(--type-scale));
+  font-weight: 700;
+  letter-spacing: 0;
+  transition:
+    font-size var(--motion-accordion) var(--ease),
+    line-height var(--motion-accordion) var(--ease),
+    letter-spacing var(--motion-accordion) var(--ease);
+}
+
+.panel[data-open='true'] .panel-header__big {
   font-size: calc(var(--fs-title) * var(--type-scale));
   line-height: calc(var(--lh-title) * var(--type-scale));
-  font-weight: 700;
   letter-spacing: calc(-0.76px * var(--type-scale));
 }
 
 .panel-header__big > span {
   display: block;
+  white-space: nowrap;
+  transition: transform var(--motion-accordion) var(--ease);
+}
+
+/* In the folded 24px strip, align the 3 spans into a single vertical line "HOW EUROPE WORKS". */
+.panel[data-open='false'] .panel-header__big > span:nth-child(2) {
+  transform: translate(calc(16px * var(--type-scale)), calc(44px * var(--type-scale)));
+}
+
+.panel[data-open='false'] .panel-header__big > span:nth-child(3) {
+  transform: translate(calc(32px * var(--type-scale)), calc(113px * var(--type-scale)));
+}
+
+/* Mode label in the folded Info strip: positioned below the 1-line title so it adds no height when open. */
+.panel-header--title > .sidebar-strip__mode {
+  position: absolute;
+  top: calc(198px * var(--type-scale));
+  left: calc((var(--strip-width) - var(--lh-xs)) / 2);
+  opacity: 1;
+  transition:
+    left var(--motion-accordion) var(--ease),
+    opacity calc(var(--motion-accordion) * 0.6) var(--ease);
+}
+
+.panel[data-open='false']:hover .panel-header--title > .sidebar-strip__mode,
+.panel[data-open='false']:focus-within .panel-header--title > .sidebar-strip__mode {
+  left: calc((var(--strip-width) + var(--strip-hover-expand) - var(--lh-xs)) / 2);
+}
+
+.panel[data-open='true'] .panel-header--title > .sidebar-strip__mode {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Subsections below the header: animate from the bottom of the rectangle up into place. */
+.panel-subsections {
+  position: relative;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transform: translateY(calc(100vh - var(--header-height)));
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--motion-accordion) var(--ease),
+    opacity var(--motion-accordion) var(--ease);
+}
+
+.panel[data-open='true'] .panel-subsections {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/*
+ * Overview / selection: animate each whole segment (not per-row content).
+ * Transform only — keep fill fully opaque so layers never ghost through each other.
+ * Enter from above, leave downward, behind the city list. No settled transform
+ * (that would clip edge-mark dots past the border).
+ */
+.panel-swap {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-paper);
+  opacity: 1;
+  transition: transform var(--motion-accordion) var(--ease);
+}
+
+.panel-swap.is-enter {
+  position: relative;
+  z-index: 1;
+  transform: translateY(calc(-48px * var(--type-scale)));
+}
+
+.panel-swap.is-in {
+  position: relative;
+  z-index: 1;
+  transform: none;
+}
+
+.panel-swap.is-out {
+  position: absolute;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  transform: translateY(calc(48px * var(--type-scale)));
+  pointer-events: none;
+}
+
+/* Applied after the leave transform finishes so the slide stays fully opaque. */
+.panel-swap.is-gone {
+  visibility: hidden;
+}
+
+.panel-swap > .panel-section,
+.panel-swap > .panel-row {
+  background: var(--c-paper);
 }
 
 .panel-row {
@@ -180,19 +365,25 @@
   border-bottom: var(--line);
 }
 
-.panel-section .panel-row {
-  margin: calc(-1 * var(--pad));
-  width: calc(100% + 2 * var(--pad));
-  border-bottom: 0;
+/* Info subsections ("About this Project", "About the Data") expand inside their own rectangle. */
+.panel-section--accordion {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.panel-section .accordion__panel {
+.panel-section--accordion > .accordion__toggle {
   margin: 0;
+  width: 100%;
+  border-bottom: 0;
 }
 
 .panel-section--grow {
+  position: relative;
+  z-index: 2;
   flex: 1 0 auto;
   border-bottom: 0;
+  background: var(--c-paper);
 }
 
 .panel-section__title {
@@ -216,8 +407,7 @@
 .panel-toggle,
 .accordion__toggle,
 .sector,
-.country,
-.clear-selection {
+.country {
   font-weight: 400;
   transition:
     font-weight var(--motion-hover) var(--ease),
@@ -246,7 +436,29 @@
 
 .accordion__body {
   color: var(--c-muted-dark);
-  margin: var(--pad) 0 0;
+  margin: 0;
+  padding: 0 var(--pad) var(--pad);
+  transform: translateY(calc(24px * var(--type-scale)));
+  opacity: 0;
+  transition:
+    transform var(--motion-accordion) var(--ease),
+    opacity var(--motion-accordion) var(--ease);
+}
+
+.accordion__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.accordion__link:hover,
+.accordion__link:focus-visible {
+  color: var(--c-ink);
+}
+
+.accordion__panel[data-open='true'] .accordion__body {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 /* ---- marks on the panel edge ---- */
@@ -254,7 +466,8 @@
 .edge-mark {
   position: absolute;
   top: 50%;
-  right: calc(-1 * var(--pad) + var(--line-width) / 2);
+  /* Centre on the panel's right border (pad reaches the border; half-line into the stroke). */
+  right: calc(-1 * var(--pad) - var(--line-width) / 2);
   width: var(--mark);
   height: var(--mark);
   border-radius: 50%;
@@ -263,7 +476,7 @@
 }
 
 .panel-row > .edge-mark {
-  right: calc(var(--line-width) / 2);
+  right: calc(-1 * var(--line-width) / 2);
 }
 
 .edge-mark--ring {
@@ -375,12 +588,6 @@
 
 .country-search::placeholder {
   color: var(--c-muted-dark);
-}
-
-.clear-selection {
-  width: 100%;
-  color: var(--c-muted-dark);
-  text-align: left;
 }
 
 .country-list {

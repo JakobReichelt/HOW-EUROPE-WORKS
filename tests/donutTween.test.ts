@@ -93,6 +93,43 @@ describe('interpolateDonut', () => {
     }
   });
 
+  it('animates the old single-city segment out ccw and the three country segments in ccw from 12 o clock', () => {
+    for (const selectedCity of swissCities) {
+      const cityOnly = donutLayout(
+        [{ countryId: 'CH', cities: [selectedCity], bracket: false }],
+        center,
+      );
+      const early = interpolateDonut(cityOnly, swiss, 0.25);
+      const mid = interpolateDonut(cityOnly, swiss, 0.5);
+      const late = interpolateDonut(cityOnly, swiss, 0.75);
+
+      // 1 exiting segment + 3 entering segments = 4 segments during the morph.
+      expect(mid.segments).toHaveLength(4);
+
+      // The first segment (closest to 12 o'clock clockwise) is the shrinking old city segment.
+      const exitingEarly = early.segments[0]!;
+      const exitingMid = mid.segments[0]!;
+      const exitingLate = late.segments[0]!;
+      expect(exitingMid.cityId).toBe(selectedCity.id);
+      expect(exitingMid.a0).toBeCloseTo(START_ANGLE, 5);
+      // Shrinking counterclockwise means a1 decreases toward START_ANGLE as t increases.
+      expect(exitingMid.a1).toBeLessThan(exitingEarly.a1);
+      expect(exitingLate.a1).toBeLessThan(exitingMid.a1);
+      expect(exitingLate.a1).toBeGreaterThan(START_ANGLE);
+
+      // The three new country segments enter counterclockwise from 12 o'clock without overlapping the exiting segment.
+      const enteringEarly = early.segments.slice(1);
+      const enteringMid = mid.segments.slice(1);
+      const enteringLate = late.segments.slice(1);
+      expect(enteringMid.map((s) => s.cityId)).toEqual(swiss.segments.map((s) => s.cityId));
+      for (let i = 0; i < 3; i++) {
+        expect(enteringMid[i]!.a0).toBeLessThan(enteringEarly[i]!.a0);
+        expect(enteringLate[i]!.a0).toBeLessThan(enteringMid[i]!.a0);
+      }
+      expect(enteringMid[0]!.a0).toBeGreaterThan(exitingMid.a1);
+    }
+  });
+
   it('mapDonut scales radii and moves the centre', () => {
     const mapped = mapDonut(swiss, 200, 300, 50);
     expect(mapped.cx).toBe(200);

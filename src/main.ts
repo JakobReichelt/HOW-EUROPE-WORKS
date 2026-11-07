@@ -14,6 +14,7 @@ import { connectRouter } from './state/router';
 import { createStore } from './state/store';
 import { initialState } from './state/types';
 import { mountUi } from './ui';
+import { mountCursor } from './ui/Cursor';
 
 function element(id: string): HTMLElement {
   const el = document.getElementById(id);
@@ -47,6 +48,7 @@ async function main() {
   const actions = createActions(store);
 
   mountUi(element('ui-root'), store, { data, actions });
+  mountCursor(store);
   const canvas = mountSketch(element('canvas-root'), { store, actions, data });
   installDevApi({ store, actions, data, canvas });
 }

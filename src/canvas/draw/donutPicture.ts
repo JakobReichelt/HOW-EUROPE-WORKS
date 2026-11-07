@@ -1,21 +1,24 @@
 /**
- * Offscreen snapshot of a static donut at one zoom and sector filter.
- * Hover, drag and the drop ring are drawn live by the scene, not baked here.
- * Pixel density stays 1 so a pan does not allocate a retina-sized buffer per country.
+ * Density-1 snapshots of city names and gender labels for a settled donut.
+ * The ring and centre name are drawn live; hover / drag / morph stay fully live.
+ * At most one buffer rebuilds per frame so a pan never pays every glyph at once.
  */
 import type p5 from 'p5';
 import { theme } from '../../config/theme';
 import type { SectorFilter } from '../../state/types';
 import type { DonutGeometry } from '../layout/donutLayout';
 import type { DetailLevel } from '../view/visibility';
-import { drawDonut } from './donut';
+import { drawDonutText } from './donut';
 
 export interface DonutPicture {
   key: string;
-  /** Zoom the buffer was rasterized at. Blit scales when the camera zoom differs. */
+  /**
+   * Scale used while rasterizing. Blit covers `side / zoom` world units.
+   * Below the camera zoom when the buffer was capped.
+   */
   zoom: number;
   gfx: p5.Graphics;
-  /** Buffer side in px at density 1. */
+  /** Buffer side in CSS px (density 1). */
   side: number;
   sector: SectorFilter;
 }
@@ -30,11 +33,12 @@ export interface PictureRequest {
   lineScale: number;
   /** Gender tick scale baked into the buffer. Same units as `lineScale`. */
   genderScale: number;
-  /** Zoom pictures are allowed to bake at. Differs while a wheel gesture is settling. */
+  /** Type scale baked into the buffer. City names use it. */
+  textScale: number;
+  /** Zoom pictures are allowed to bake at. Differs from `zoom` while the camera is moving. */
   bakedZoom: number;
   sectorFilter: SectorFilter;
   detail: DetailLevel;
-  label: string | null;
   groupLabel: (countryId: string) => string;
 }
 
@@ -43,27 +47,35 @@ interface Stored extends DonutPicture {
 }
 
 function pictureKey(req: PictureRequest): string {
+  const groups = req.geom.groups
+    .map((group) => group.label ?? req.groupLabel(group.countryId))
+    .join(',');
   return [
     req.bakedZoom,
     req.lineScale,
     req.genderScale,
+    req.textScale,
     req.sectorFilter ?? '',
     req.detail,
-    req.label ?? '',
+    groups,
     req.geom.countryIds.join(','),
     req.geom.R,
-    'screen-detail',
+    'labels-only',
   ].join('|');
 }
 
 export class DonutPictures {
   private readonly pictures = new Map<string, Stored>();
   private readonly seen = new Set<string>();
+  private rebuildsLeft = 0;
+  private deferred = false;
 
   constructor(private readonly host: p5) {}
 
   beginFrame(): void {
     this.seen.clear();
+    this.rebuildsLeft = 1;
+    this.deferred = false;
   }
 
   /** Keep a picture alive this frame without rebuilding it (hovered or dragged donut). */
@@ -71,9 +83,14 @@ export class DonutPictures {
     this.seen.add(id);
   }
 
+  /** True when at least one visible donut still needs a fresh label buffer. */
+  hasDeferred(): boolean {
+    return this.deferred;
+  }
+
   /**
-   * Picture to blit, or null when the caller should draw live.
-   * Rebuilds only when the camera zoom has settled on `bakedZoom` and the key missed.
+   * Label picture to blit, or null when the caller should skip city labels this frame.
+   * Rebuilds at most once per frame; other misses keep a stale buffer or wait.
    */
   pictureFor(req: PictureRequest): DonutPicture | null {
     this.seen.add(req.id);
@@ -83,6 +100,11 @@ export class DonutPictures {
     }
     const key = pictureKey(req);
     if (existing && existing.key === key) return existing;
+    if (this.rebuildsLeft <= 0) {
+      this.deferred = true;
+      return existing && existing.sector === req.sectorFilter ? existing : null;
+    }
+    this.rebuildsLeft -= 1;
     return this.render(existing, req, key);
   }
 
@@ -103,15 +125,19 @@ export class DonutPictures {
     key: string,
   ): DonutPicture | null {
     const zoom = req.bakedZoom;
-    const side = Math.ceil((req.geom.outer + theme.canvas.labelPad) * 2 * zoom);
-    if (side < 1 || side > theme.canvas.pictureMaxSide) {
+    const wanted = Math.ceil((req.geom.outer + theme.canvas.labelPad) * 2 * zoom);
+    if (wanted < 1) {
       this.drop(req.id);
       return null;
     }
+    const side = Math.min(wanted, theme.canvas.pictureMaxSide);
+    const drawZoom = zoom * (side / wanted);
 
-    let gfx = existing?.gfx;
-    if (!gfx || existing?.side !== side) {
-      if (gfx) this.dispose(gfx);
+    let gfx: p5.Graphics;
+    if (existing && existing.side === side) {
+      gfx = existing.gfx;
+    } else {
+      if (existing) this.dispose(existing.gfx);
       const canvas = document.createElement('canvas');
       gfx = this.host.createGraphics(side, side, canvas);
       gfx.pixelDensity(1);
@@ -121,26 +147,25 @@ export class DonutPictures {
     gfx.push();
     gfx.textFont(theme.font.family);
     gfx.translate(side / 2, side / 2);
-    gfx.scale(zoom);
+    gfx.scale(drawZoom);
     gfx.translate(-g.cx, -g.cy);
-    drawDonut(gfx, g, {
+    drawDonutText(gfx, g, {
       lineScale: req.lineScale,
       genderScale: req.genderScale,
+      textScale: req.textScale,
       zoom,
       detail: req.detail,
       sectorFilter: req.sectorFilter,
-      hoverCityId: null,
-      hoverCountry: false,
       label: null,
       groupLabel: req.groupLabel,
-      details: false,
+      details: true,
       alpha: 1,
     });
     gfx.pop();
 
     const stored: Stored = {
       key,
-      zoom,
+      zoom: drawZoom,
       gfx,
       side,
       sector: req.sectorFilter,

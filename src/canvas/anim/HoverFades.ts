@@ -40,9 +40,9 @@ export class HoverFades {
 
   tick(nowMs: number, durationMs: number): void {
     // The canvas sleeps between changes; a long gap must not count as elapsed fade time,
-    // or the first frame after an idle hover jumps straight to the target.
-    const dt =
-      this.lastMs === 0 ? FRAME_MS : Math.min(MAX_STEP_MS, Math.max(0, nowMs - this.lastMs));
+    // or the first frame after an idle hover jumps ahead.
+    const rawDt = nowMs - this.lastMs;
+    const dt = this.lastMs === 0 || rawDt > MAX_STEP_MS ? FRAME_MS : Math.max(0, rawDt);
     this.lastMs = nowMs;
     for (const [key, value] of [...this.values]) {
       const target = this.targets.get(key) ?? 0;

@@ -9,7 +9,7 @@ import {
   type IntroBlock,
   type IntroRun,
 } from '../content/intro';
-import { ARROW, h, setChildren, show } from './dom';
+import { ARROW, h, setChildren, show, slideShow } from './dom';
 import type { Component, UiContext } from './types';
 
 export function createIntroControls({ data, actions }: UiContext): Component {
@@ -43,7 +43,11 @@ export function createIntroControls({ data, actions }: UiContext): Component {
     nextLabel,
   );
   const stage = h('div', { class: 'intro__stage' }, copy, back, next);
-  const el = h('section', { class: 'intro', 'data-testid': 'intro', 'aria-live': 'polite' }, stage);
+  const el = h(
+    'section',
+    { class: 'intro', 'data-testid': 'intro', 'aria-live': 'polite', hidden: true },
+    stage,
+  );
 
   const place = () => {
     const frame = introFrame(window.innerWidth, window.innerHeight);
@@ -58,7 +62,7 @@ export function createIntroControls({ data, actions }: UiContext): Component {
   return {
     el,
     update(state) {
-      show(el, state.scene === 'intro');
+      slideShow(el, state.scene === 'intro');
       const step = INTRO_STEPS[state.introStep];
       if (!step) return;
       setChildren(

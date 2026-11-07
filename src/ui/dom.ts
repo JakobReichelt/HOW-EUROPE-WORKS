@@ -33,5 +33,41 @@ export function show(el: HTMLElement, visible: boolean): void {
   el.hidden = !visible;
 }
 
+/**
+ * Show / hide with a CSS enter class so width or transform can tween.
+ * `hidden` is cleared before the class is added, and set after the leave transition.
+ * No-ops when the element is already in the requested state.
+ */
+export function slideShow(el: HTMLElement, visible: boolean, inClass = 'is-in'): void {
+  const isIn = el.classList.contains(inClass);
+  if (visible) {
+    if (isIn && !el.hidden) return;
+    el.hidden = false;
+    // Reflow so the leave transform is the transition start point.
+    void el.offsetWidth;
+    el.classList.add(inClass);
+    return;
+  }
+  if (!isIn && el.hidden) return;
+  const finish = () => {
+    if (!el.classList.contains(inClass)) el.hidden = true;
+  };
+  const onEnd = (event: TransitionEvent) => {
+    if (event.target !== el) return;
+    el.removeEventListener('transitionend', onEnd);
+    finish();
+  };
+  el.classList.remove(inClass);
+  el.addEventListener('transitionend', onEnd);
+  // prefers-reduced-motion zeroes the duration; some engines skip transitionend then.
+  requestAnimationFrame(() => {
+    const ms = parseFloat(getComputedStyle(el).transitionDuration) * 1000;
+    if (!(ms > 0)) {
+      el.removeEventListener('transitionend', onEnd);
+      finish();
+    }
+  });
+}
+
 /** Arrow glyphs used in Figma labels. */
 export const ARROW = { right: '\u2192', left: '\u2190', up: '\u2191', down: '\u2193' } as const;

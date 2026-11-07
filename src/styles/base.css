@@ -16,6 +16,42 @@ body {
   line-height: calc(var(--lh-xs) * var(--type-scale));
 }
 
+/* Custom circle cursor (fine pointers only). */
+@media (pointer: fine) {
+  html.has-custom-cursor,
+  html.has-custom-cursor * {
+    cursor: none !important;
+  }
+}
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1.5px solid var(--c-ink);
+  border-radius: 50%;
+  background: var(--c-paper);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-100px, -100px);
+  will-change: transform;
+  transition:
+    background-color var(--motion-hover) var(--ease),
+    opacity 0ms;
+}
+
+.cursor.is-visible {
+  opacity: 1;
+}
+
+.cursor.is-active {
+  background: var(--c-ink);
+}
+
 [hidden] {
   display: none !important;
 }
@@ -183,6 +219,12 @@ canvas:focus-visible {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--motion-accordion) var(--ease);
+}
+
+.intro.is-in {
+  opacity: 1;
 }
 
 .intro__stage {
@@ -193,6 +235,7 @@ canvas:focus-visible {
   height: 960px;
   transform-origin: 0 0;
   --type-scale: 1;
+  /* Stage transform is set in JS (frame scale). Slide is applied via opacity on .intro. */
 }
 
 .intro__block {

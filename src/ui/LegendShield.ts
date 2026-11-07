@@ -15,7 +15,7 @@ export function createLegendShield(ctx: UiContext): Component {
   return {
     el,
     update(state) {
-      el.hidden = state.scene !== 'explore' || !state.legendOpen;
+      el.hidden = state.scene !== 'explore' || !state.legendOpen || state.selection.length === 0;
     },
   };
 }

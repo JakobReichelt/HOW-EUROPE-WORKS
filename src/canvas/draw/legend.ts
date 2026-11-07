@@ -69,10 +69,14 @@ export function drawLegend(
   p.push();
   p.textFont(theme.font.family);
   p.textSize(theme.font.xs * fontScale);
-  const hover = segmentHover(p, seg, fontScale);
+  // Same stroke / gender / type scales as the donut underneath, so the redraw
+  // sits exactly on the veiled mark instead of offsetting the gender tick.
+  // People / commuter copy stays in the hole and is painted last so it sits on top.
+  const hover = segmentHover(p, seg, fontScale, sizeScale, 'center');
   drawSegment(p, g, seg, {
-    lineScale: 1,
+    lineScale: sizeScale,
     textScale: fontScale,
+    genderScale: sizeScale,
     // Legend geometry is screen-space already (resetMatrix); do not re-apply camera zoom.
     zoom: 1,
     detail: 'full',
@@ -80,11 +84,10 @@ export function drawLegend(
     hoverCountry: false,
     sectorFilter,
     details: true,
-    omitCityName: hover.place === 'arc',
   });
-  hover.paint(g);
   drawUnemployment(p, g, seg, scale, sizeScale, fontScale);
   drawCommuteGuides(p, g, seg, sizeScale, fontScale);
+  hover.paint(g);
   p.pop();
 }
 

@@ -3,7 +3,7 @@ import type p5 from 'p5';
 import { theme } from '../../config/theme';
 import type { BarCallout, BarGeometry, BarScaleArrow } from '../layout/barLayout';
 import type { Rect } from '../geometry';
-import { ctx2d, drawMarsSymbol, hatchLines, setDash, withRectClip } from './shapes';
+import { ctx2d, drawMarsSymbol, hatchRect, setDash } from './shapes';
 
 const c = theme.color;
 const t = theme.intro;
@@ -32,19 +32,14 @@ export function drawBar(p: p5, g: BarGeometry): void {
   p.rect(box.x, box.y, box.w, box.h);
 
   if (g.hatchW !== null && g.hatchW > 2) {
-    const area = { x: box.x + 1, y: box.y + 1, w: g.hatchW - 2, h: box.h - 2 };
-    withRectClip(p, area, () => {
-      p.stroke(c.ink);
-      p.strokeWeight(theme.stroke.thin);
-      hatchLines(
-        p,
-        area.x + area.w / 2,
-        area.y + area.h / 2,
-        Math.hypot(area.w, area.h) / 2,
-        theme.detail.hatchSpacing,
-        theme.detail.hatchAngle,
-      );
-    });
+    hatchRect(
+      p,
+      { x: box.x + 1, y: box.y + 1, w: g.hatchW - 2, h: box.h - 2 },
+      theme.detail.hatchSpacing,
+      theme.stroke.thin,
+      theme.detail.hatchAngle,
+      c.ink,
+    );
     p.stroke(c.ink);
     p.strokeWeight(theme.stroke.thin);
     p.line(box.x + g.hatchW, box.y, box.x + g.hatchW, box.y + box.h);
