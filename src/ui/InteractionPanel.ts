@@ -16,6 +16,52 @@ function setInert(el: HTMLElement, inert: boolean): void {
   el.setAttribute('aria-hidden', String(inert));
 }
 
+let settleListener: ((event: TransitionEvent) => void) | null = null;
+
+/**
+ * `is-settled` lets edge marks bleed past the border. It stays off while the
+ * width is moving so the full-size content cannot spill out of the rectangle.
+ */
+function syncOpen(el: HTMLElement, open: boolean): void {
+  const wasOpen = el.dataset.open === 'true';
+  el.dataset.open = String(open);
+  if (!open) {
+    if (settleListener) {
+      el.removeEventListener('transitionend', settleListener);
+      settleListener = null;
+    }
+    el.classList.remove('is-settled');
+    return;
+  }
+  // A later store update (hover, selection) must not settle the bleed mid-width.
+  if (wasOpen) {
+    if (!settleListener) el.classList.add('is-settled');
+    return;
+  }
+  el.classList.remove('is-settled');
+  if (settleListener) {
+    el.removeEventListener('transitionend', settleListener);
+    settleListener = null;
+  }
+  const onEnd = (event: TransitionEvent) => {
+    if (event.target !== el || event.propertyName !== 'width') return;
+    el.removeEventListener('transitionend', onEnd);
+    if (settleListener === onEnd) settleListener = null;
+    if (el.dataset.open === 'true') el.classList.add('is-settled');
+  };
+  settleListener = onEnd;
+  el.addEventListener('transitionend', onEnd);
+  requestAnimationFrame(() => {
+    if (settleListener !== onEnd) return;
+    const ms = parseFloat(getComputedStyle(el).transitionDuration) * 1000;
+    if (!(ms > 0)) {
+      el.removeEventListener('transitionend', onEnd);
+      settleListener = null;
+      if (el.dataset.open === 'true') el.classList.add('is-settled');
+    }
+  });
+}
+
 /** Whole overview / selection segment: enter from above, leave downward, behind the city list. */
 function setSwap(el: HTMLElement, visible: boolean, animate: boolean): void {
   if (visible) {
@@ -137,7 +183,7 @@ export function createInteractionPanel(ctx: UiContext): Component {
     el,
     update(state, previous) {
       const open = state.sidebar.panel === 'interaction';
-      el.dataset.open = String(open);
+      syncOpen(el, open);
       trigger.setAttribute('aria-expanded', String(open));
       setInert(trigger, open);
       setInert(subsections, !open);

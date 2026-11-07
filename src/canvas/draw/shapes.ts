@@ -22,19 +22,19 @@ export function annularSector(
   r1: number,
   a0: number,
   a1: number,
-  step: number,
 ): void {
-  const steps = Math.max(2, Math.ceil((a1 - a0) / step));
-  p.beginShape();
-  for (let i = 0; i <= steps; i++) {
-    const a = a0 + ((a1 - a0) * i) / steps;
-    p.vertex(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-  }
-  for (let i = steps; i >= 0; i--) {
-    const a = a0 + ((a1 - a0) * i) / steps;
-    p.vertex(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
-  }
-  p.endShape(p.CLOSE);
+  if (a1 <= a0) return;
+  const ctx = ctx2d(p);
+  const renderer = (p as unknown as { _renderer?: { _doFill?: boolean; _doStroke?: boolean } })
+    ._renderer;
+  const doFill = renderer?._doFill !== false;
+  const doStroke = renderer?._doStroke !== false;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r1, a0, a1);
+  ctx.arc(cx, cy, r0, a1, a0, true);
+  ctx.closePath();
+  if (doFill) ctx.fill();
+  if (doStroke) ctx.stroke();
 }
 
 export function ringOutline(p: p5, cx: number, cy: number, r: number): void {
@@ -213,6 +213,55 @@ export interface TextRun {
 }
 
 /**
+ * Cached character widths and font metrics keyed by font specification.
+ * Avoids calling `p.textStyle()` + `p.textWidth(ch)` per character on every frame.
+ */
+const glyphWidthCache = new Map<string, number>();
+const ascentCache = new Map<string, number>();
+
+function fontSpec(size: number, bold: boolean): string {
+  const weight = bold ? '700' : '400';
+  return `${weight} ${size}px "${theme.font.family}"`;
+}
+
+export function cachedGlyphWidth(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  bold: boolean,
+  ch: string,
+): number {
+  const spec = fontSpec(size, bold);
+  const key = `${spec}|${ch}`;
+  const hit = glyphWidthCache.get(key);
+  if (hit !== undefined) return hit;
+  const prev = ctx.font;
+  ctx.font = spec;
+  const w = ctx.measureText(ch).width;
+  ctx.font = prev;
+  glyphWidthCache.set(key, w);
+  return w;
+}
+
+function cachedAscent(p: p5, size: number): number {
+  const key = `${size.toFixed(2)}`;
+  const hit = ascentCache.get(key);
+  if (hit !== undefined) return hit;
+  p.textSize(size);
+  const ascent = p.textAscent();
+  ascentCache.set(key, ascent);
+  return ascent;
+}
+
+/** Sum of glyph advances for `text` at the current p5 textSize and given bold state. */
+export function measureGlyphSpan(p: p5, text: string, bold = false): number {
+  const ctx = ctx2d(p);
+  const size = p.textSize();
+  let width = 0;
+  for (const ch of text) width += cachedGlyphWidth(ctx, size, bold, ch);
+  return width;
+}
+
+/**
  * Text along a circle, starting at `angle` and running clockwise, glyphs outside radius `r`.
  * On the lower half the text is mirrored so it stays upright (Figma city labels).
  * `orientAt` locks that choice, so a second line stacked on the first does not flip on its own.
@@ -224,35 +273,44 @@ export function arcText(
   o: { cx: number; cy: number; r: number; angle: number; orientAt?: number },
 ): void {
   const list = typeof runs === 'string' ? [{ text: runs }] : runs;
+  const ctx = ctx2d(p);
+  const size = p.textSize();
   const glyphs: { ch: string; w: number; bold: boolean; alpha: number }[] = [];
   for (const run of list) {
-    p.textStyle(run.bold ? p.BOLD : p.NORMAL);
+    const bold = !!run.bold;
     const alpha = run.alpha ?? 1;
-    for (const ch of run.text) glyphs.push({ ch, w: p.textWidth(ch), bold: !!run.bold, alpha });
+    for (const ch of run.text) {
+      glyphs.push({ ch, w: cachedGlyphWidth(ctx, size, bold, ch), bold, alpha });
+    }
   }
   const span = glyphs.reduce((sum, g) => sum + g.w, 0) / o.r;
   const flip = Math.sin(o.orientAt ?? o.angle + span / 2) > 0;
-  const ascent = p.textAscent();
-  const base = ctx2d(p);
-  const baseAlpha = base.globalAlpha;
+  const ascent = cachedAscent(p, size);
+  const baseAlpha = ctx.globalAlpha;
+  const normalFont = fontSpec(size, false);
+  const boldFont = fontSpec(size, true);
 
-  p.push();
-  p.textAlign(p.CENTER, p.BASELINE);
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  let currentBold: boolean | null = null;
   let advanced = 0;
   for (const g of glyphs) {
     const t = (advanced + g.w / 2) / o.r;
     advanced += g.w;
     if (g.alpha <= 0) continue;
     const a = flip ? o.angle + span - t : o.angle + t;
-    p.push();
-    p.translate(o.cx + Math.cos(a) * o.r, o.cy + Math.sin(a) * o.r);
-    p.rotate(flip ? a - Math.PI / 2 : a + Math.PI / 2);
-    p.textStyle(g.bold ? p.BOLD : p.NORMAL);
-    base.globalAlpha = baseAlpha * g.alpha;
-    p.text(g.ch, 0, flip ? ascent : 0);
-    p.pop();
+    ctx.save();
+    ctx.translate(o.cx + Math.cos(a) * o.r, o.cy + Math.sin(a) * o.r);
+    ctx.rotate(flip ? a - Math.PI / 2 : a + Math.PI / 2);
+    if (currentBold !== g.bold) {
+      ctx.font = g.bold ? boldFont : normalFont;
+      currentBold = g.bold;
+    }
+    ctx.globalAlpha = baseAlpha * g.alpha;
+    ctx.fillText(g.ch, 0, flip ? ascent : 0);
+    ctx.restore();
   }
-  base.globalAlpha = baseAlpha;
-  p.pop();
-  p.textStyle(p.NORMAL);
+  ctx.globalAlpha = baseAlpha;
+  ctx.restore();
 }

@@ -37,8 +37,10 @@ export function mountCursor(store: Store<AppState>): () => void {
   document.documentElement.classList.add('has-custom-cursor');
 
   let visible = false;
+  let active = false;
   let x = 0;
   let y = 0;
+  let lastTarget: Element | null = null;
 
   const setVisible = (next: boolean) => {
     if (next === visible) return;
@@ -47,25 +49,30 @@ export function mountCursor(store: Store<AppState>): () => void {
   };
 
   const setActive = (next: boolean) => {
+    if (next === active) return;
+    active = next;
     el.classList.toggle('is-active', next);
   };
 
-  const refreshActive = (state: AppState = store.getState()) => {
-    const under = document.elementFromPoint(x, y);
-    setActive(isDomClickable(under) || isCanvasClickable(state, under));
+  const refreshActive = (
+    state: AppState = store.getState(),
+    target: Element | null = lastTarget ?? document.elementFromPoint(x, y),
+  ) => {
+    setActive(isDomClickable(target) || isCanvasClickable(state, target));
   };
 
-  const syncAt = (clientX: number, clientY: number) => {
+  const syncAt = (clientX: number, clientY: number, target: Element | null) => {
     x = clientX;
     y = clientY;
+    lastTarget = target;
     el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-    refreshActive();
+    refreshActive(store.getState(), target);
     setVisible(true);
   };
 
   const onMove = (e: PointerEvent) => {
     if (e.pointerType === 'touch') return;
-    syncAt(e.clientX, e.clientY);
+    syncAt(e.clientX, e.clientY, e.target instanceof Element ? e.target : null);
   };
 
   const onLeave = () => setVisible(false);

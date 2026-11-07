@@ -409,6 +409,10 @@ export class ExploreScene implements Scene {
     return this.pictures;
   }
 
+  private snapZoom(): void {
+    this.bakedZoom = this.camera.zoom;
+  }
+
   /**
    * One scale for strokes and type: world draws pass 1 and let the camera scale them.
    * A screen-space donut passes the camera zoom so it matches that same size.
@@ -512,7 +516,7 @@ export class ExploreScene implements Scene {
     this.hoverFades.setActive(active);
     this.hoverFades.tick(now, motionMs(theme.motion.hoverMs));
 
-    const city = ctx.state.hover.cityId;
+    const city = exploreMode(ctx.state.selection) === 'overview' ? null : ctx.state.hover.cityId;
     if (city !== this.hoverRevealCity) {
       this.hoverRevealCity = city;
       this.hoverRevealStart = now;
@@ -520,8 +524,8 @@ export class ExploreScene implements Scene {
   }
 
   /**
-   * Live ring and centre name, then a density-1 blit of city / gender labels.
-   * Label buffers rebuild one country per frame.
+   * Settled donut blit from the offscreen picture cache.
+   * Falls back to a live ring draw on the single frame before its buffer builds.
    */
   private paintCached(
     ctx: SceneContext,
@@ -534,13 +538,7 @@ export class ExploreScene implements Scene {
     textScale = 1,
     alpha = 1,
   ): void {
-    const detail = detailLevel(g.R * zoom);
-    drawDonut(ctx.p, g, {
-      ...this.bodyStyle(ctx, zoom, detail, label, lineScale, textScale),
-      genderScale: lineScale,
-      details: false,
-      alpha,
-    });
+    const detail = detailLevel(g.R * zoom, designZoom(ctx.viewport));
     const pic = this.ensurePictures(ctx.p).pictureFor({
       id,
       geom: g,
@@ -550,14 +548,21 @@ export class ExploreScene implements Scene {
       genderScale: lineScale,
       textScale,
       sectorFilter: ctx.state.sectorFilter,
-      detail: detailLevel(g.R * bakedZoom),
+      detail: detailLevel(g.R * bakedZoom, designZoom(ctx.viewport)),
+      label,
       groupLabel: this.groupLabel(ctx),
     });
-    if (pic) blitDonut(ctx.p, pic, g, alpha);
-  }
-
-  private snapZoom(): void {
-    this.bakedZoom = this.camera.zoom;
+    if (pic) {
+      blitDonut(ctx.p, pic, g, alpha);
+      return;
+    }
+    // No buffer yet: draw the complete donut live so labels never pop in a frame later.
+    drawDonut(ctx.p, g, {
+      ...this.bodyStyle(ctx, zoom, detail, label, lineScale, textScale),
+      genderScale: lineScale,
+      details: true,
+      alpha,
+    });
   }
 
   /**
@@ -811,15 +816,17 @@ export class ExploreScene implements Scene {
     const pictures = this.ensurePictures(p);
     const labelPad = theme.canvas.labelPad;
     const anchorId = this.transition?.anchorId;
+    const frameScale = designZoom(ctx.viewport);
 
     p.push();
     applyCamera(p, this.camera, ctx.viewport);
+
     for (const g of this.worldGeoms) {
       const countryId = g.countryIds[0] ?? '';
       if (anchorId && countryId === anchorId && this.transition) continue;
       const id = `world:${countryId}`;
       const label = data.countryById.get(countryId)?.name ?? countryId;
-      const detail = detailLevel(g.R * zoom);
+      const detail = detailLevel(g.R * zoom, frameScale);
       if (omitCountry === countryId) {
         pictures.retain(id);
         continue;
@@ -835,23 +842,21 @@ export class ExploreScene implements Scene {
         });
       } else if (!circleHitsViewport(this.camera, ctx.viewport, g.cx, g.cy, g.outer, labelPad)) {
         continue;
+      } else if (
+        this.dropTarget === countryId ||
+        dropMix > 0.001 ||
+        this.hoverActive(g) ||
+        state.hover.countryId === countryId
+      ) {
+        pictures.retain(id);
+        const drawnGeom = dropMix > 0.001 ? this.dropPreviewGeom(ctx, g, dropMix) : g;
+        drawDonut(p, drawnGeom, {
+          ...this.bodyStyle(ctx, zoom, detail, label, 1, textScale),
+          ...this.hoverStyle(ctx, g.countryIds),
+          alpha,
+        });
       } else {
-        if (
-          this.hoverActive(g) ||
-          state.hover.countryId === countryId ||
-          this.dropTarget === countryId ||
-          dropMix > 0.001
-        ) {
-          pictures.retain(id);
-          const drawnGeom = dropMix > 0.001 ? this.dropPreviewGeom(ctx, g, dropMix) : g;
-          drawDonut(p, drawnGeom, {
-            ...this.bodyStyle(ctx, zoom, detail, label, 1, textScale),
-            ...this.hoverStyle(ctx, g.countryIds),
-            alpha,
-          });
-        } else {
-          this.paintCached(ctx, g, id, zoom, this.bakedZoom, label, 1, textScale, alpha);
-        }
+        this.paintCached(ctx, g, id, zoom, this.bakedZoom, label, 1, textScale, alpha);
       }
     }
 
@@ -883,7 +888,7 @@ export class ExploreScene implements Scene {
       ...this.bodyStyle(
         ctx,
         zoom,
-        detailLevel(geom.R * zoom),
+        detailLevel(geom.R * zoom, designZoom(ctx.viewport)),
         ctx.data.countryById.get(drag.countryId)?.name ?? null,
         1,
         this.worldTextScale(ctx, zoom),
@@ -915,7 +920,7 @@ export class ExploreScene implements Scene {
       lineScale: 1,
       textScale: this.worldTextScale(ctx, zoom),
       zoom,
-      detail: detailLevel(geom.R * zoom),
+      detail: detailLevel(geom.R * zoom, designZoom(ctx.viewport)),
       hoverCityId: null,
       hoverCountry: false,
       sectorFilter: ctx.state.sectorFilter,
@@ -973,7 +978,7 @@ export class ExploreScene implements Scene {
           ...this.bodyStyle(
             ctx,
             zoom,
-            detailLevel(geom.R * zoom),
+            detailLevel(geom.R * zoom, designZoom(ctx.viewport)),
             ctx.data.countryById.get(ghost.drag.countryId)?.name ?? null,
             1,
             this.worldTextScale(ctx, zoom),
@@ -994,7 +999,7 @@ export class ExploreScene implements Scene {
           lineScale: 1,
           textScale: this.worldTextScale(ctx, zoom),
           zoom,
-          detail: detailLevel(geom.R * zoom),
+          detail: detailLevel(geom.R * zoom, designZoom(ctx.viewport)),
           hoverCityId: null,
           hoverCountry: false,
           sectorFilter: ctx.state.sectorFilter,
@@ -1054,7 +1059,7 @@ export class ExploreScene implements Scene {
   }
 
   private drawSelection(ctx: SceneContext, now: number): void {
-    const { state, p } = ctx;
+    const { p } = ctx;
     const morphing = this.transition && !this.transition.morph.done(now);
     const rawG = morphing ? this.transition!.morph.current(now) : this.selectionGeometry(ctx);
     const g = morphing ? this.placeTransitionDonut(ctx, rawG) : rawG;
@@ -1065,7 +1070,6 @@ export class ExploreScene implements Scene {
     const hover = this.hoverStyle(ctx, g.countryIds);
     const showBrackets =
       this.transition?.kind !== 'enter-selection' && this.transition?.kind !== 'leave-selection';
-    const id = `view:${encodeSelection(state.selection)}:${Math.round(g.R)}`;
 
     // Leaving selection draws the morph in screen space over the fading overview.
     if (this.transition?.kind === 'leave-selection') {
@@ -1081,17 +1085,13 @@ export class ExploreScene implements Scene {
       return;
     }
 
-    if (morphing || state.hover.countryId || this.hoverActive(g)) {
-      this.ensurePictures(p).retain(id);
-      drawDonut(p, g, {
-        ...this.bodyStyle(ctx, 1, detailLevel(g.R), label, scale, type),
-        ...hover,
-        hoverInfo: true,
-        brackets: showBrackets,
-      });
-      return;
-    }
-    this.paintCached(ctx, g, id, 1, 1, label, scale, type);
+    // Selection view only ever shows a single donut, so draw it crisp and live.
+    drawDonut(p, g, {
+      ...this.bodyStyle(ctx, 1, detailLevel(g.R), label, scale, type),
+      ...hover,
+      hoverInfo: true,
+      brackets: showBrackets,
+    });
   }
 
   /**

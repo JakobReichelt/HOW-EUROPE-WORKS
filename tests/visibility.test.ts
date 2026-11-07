@@ -37,4 +37,10 @@ describe('detailLevel', () => {
     expect(detailLevel(t - 0.1)).toBe('mark');
     expect(detailLevel(t)).toBe('full');
   });
+
+  it('scales the threshold up on viewports larger than the design frame', () => {
+    const t = theme.canvas.fullRadius;
+    expect(detailLevel(t * 1.4, 1.5)).toBe('mark');
+    expect(detailLevel(t * 1.5, 1.5)).toBe('full');
+  });
 });

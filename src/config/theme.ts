@@ -155,6 +155,11 @@ export const theme = {
   canvas: {
     /** Main canvas backing store never exceeds this, even on a denser display. */
     maxPixelRatio: 1.5,
+    /**
+     * Cap total backing-store pixels (~1440p at 1.5x). 4K viewports scale down
+     * toward density 1 so the main canvas stays fast without softening 1440p screens.
+     */
+    maxBackingPixels: 2560 * 1440 * 2.25,
     /** Screen px of donut radius R at or above which hatch and arc labels are drawn. */
     fullRadius: 160,
     /** Vertex step of a segment outline, in radians. */
@@ -164,10 +169,10 @@ export const theme = {
     /** World units added around a donut when culling, so labels are not cut off. */
     labelPad: 48,
     /**
-     * Offscreen label-buffer side in CSS px (density 1). A larger ring's labels
-     * bake into this size and scale up on blit.
+     * Max offscreen donut-buffer side in device px. Large enough that even the
+     * biggest country donut on a 1440p / 4K monitor bakes at 1:1 device pixels.
      */
-    pictureMaxSide: 1024,
+    pictureMaxSide: 2560,
   },
   /**
    * Legend callouts (Figma 360:6643). Screen pixels at sizeScale 1 (selection-sized

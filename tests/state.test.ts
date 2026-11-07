@@ -57,6 +57,33 @@ describe('actions', () => {
     });
   });
 
+  it('leaves the intro on Info and opens Interaction only when a selection starts', () => {
+    const store = createStore(initialState);
+    const actions = createActions(store);
+    actions.startIntro();
+    expect(store.getState().sidebar.panel).toBe('info');
+    actions.setSidebarPanel('interaction');
+    actions.setIntroStep(INTRO_STEPS.length - 1);
+    actions.introNext();
+    expect(store.getState()).toMatchObject({
+      scene: 'explore',
+      selection: [],
+      sidebar: { panel: 'info' },
+    });
+    actions.selectCountries(['CH']);
+    expect(store.getState().sidebar.panel).toBe('interaction');
+    expect(store.getState().selection).toEqual([{ kind: 'country', id: 'CH' }]);
+  });
+
+  it('keeps Info open when a selection grows but the view was already a selection', () => {
+    const store = createStore(initialState);
+    const actions = createActions(store);
+    actions.selectCountries(['FR']);
+    actions.setSidebarPanel('info');
+    actions.toggleCountry('ES');
+    expect(store.getState().sidebar.panel).toBe('info');
+  });
+
   it('toggles countries in selection order', () => {
     const store = createStore(initialState);
     const actions = createActions(store);

@@ -33,6 +33,6 @@ export function circleHitsViewport(
   return dx * dx + dy * dy <= sr * sr;
 }
 
-export function detailLevel(screenRadius: number): DetailLevel {
-  return screenRadius >= theme.canvas.fullRadius ? 'full' : 'mark';
+export function detailLevel(screenRadius: number, frameScale = 1): DetailLevel {
+  return screenRadius >= theme.canvas.fullRadius * Math.max(1, frameScale) ? 'full' : 'mark';
 }

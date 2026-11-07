@@ -5,9 +5,32 @@ import { INTRO_STEPS } from '../content/intro';
 import type { SectorKey } from '../data/types';
 import { toggleCityPart, toggleCountryPart } from './selection';
 import type { Store } from './store';
-import { NO_HOVER, type AppState, type Hover, type InfoSection, type SidebarPanel } from './types';
+import {
+  NO_HOVER,
+  type AppState,
+  type Hover,
+  type InfoSection,
+  type SelectionPart,
+  type SidebarPanel,
+} from './types';
 
 export type Actions = ReturnType<typeof createActions>;
+
+/**
+ * Entering selection view (overview -> focus / compare) opens the Interaction
+ * accordion. Leaving the introduction does not: the sidebar stays on Info
+ * until a country or city is selected.
+ */
+function selectionChange(state: AppState, selection: SelectionPart[]): Partial<AppState> {
+  const entered = state.selection.length === 0 && selection.length > 0;
+  const showInteraction = entered && state.sidebar.panel !== 'interaction';
+  return {
+    selection,
+    hover: NO_HOVER,
+    ...(selection.length === 0 ? { legendOpen: false } : {}),
+    ...(showInteraction ? { sidebar: { ...state.sidebar, panel: 'interaction' as const } } : {}),
+  };
+}
 
 export function createActions(store: Store<AppState>) {
   const set = store.setState;
@@ -15,7 +38,12 @@ export function createActions(store: Store<AppState>) {
 
   return {
     startIntro() {
-      set({ scene: 'intro', introStep: 0, hover: NO_HOVER });
+      set((s) => ({
+        scene: 'intro',
+        introStep: 0,
+        hover: NO_HOVER,
+        sidebar: { ...s.sidebar, panel: 'info' },
+      }));
     },
     goToExplore() {
       set({ scene: 'explore', selection: [], legendOpen: false, hover: NO_HOVER });
@@ -24,9 +52,16 @@ export function createActions(store: Store<AppState>) {
       set({ scene: 'landing', selection: [], hover: NO_HOVER });
     },
     introNext() {
-      const { introStep } = store.getState();
+      const { introStep, sidebar } = store.getState();
       if (introStep >= lastStep) {
-        set({ scene: 'explore', selection: [], legendOpen: false, hover: NO_HOVER });
+        // The explore sidebar appears on Info. Interaction opens with the first selection.
+        set({
+          scene: 'explore',
+          selection: [],
+          legendOpen: false,
+          hover: NO_HOVER,
+          sidebar: { ...sidebar, panel: 'info' },
+        });
       } else set({ introStep: introStep + 1 });
     },
     introBack() {
@@ -65,52 +100,30 @@ export function createActions(store: Store<AppState>) {
       set((s) => ({ sectorFilter: s.sectorFilter === null ? 'none' : null }));
     },
     toggleCountry(countryId: string, cityIds: readonly string[] = []) {
-      set((s) => {
-        const selection = toggleCountryPart(s.selection, countryId, cityIds);
-        return {
-          selection,
-          hover: NO_HOVER,
-          ...(selection.length === 0 ? { legendOpen: false } : {}),
-        };
-      });
+      set((s) => selectionChange(s, toggleCountryPart(s.selection, countryId, cityIds)));
     },
     toggleCity(cityId: string, countryId: string) {
-      set((s) => {
-        const selection = toggleCityPart(s.selection, cityId, countryId);
-        return {
-          selection,
-          hover: NO_HOVER,
-          ...(selection.length === 0 ? { legendOpen: false } : {}),
-        };
-      });
+      set((s) => selectionChange(s, toggleCityPart(s.selection, cityId, countryId)));
     },
     selectCountries(countryIds: string[]) {
       const selection = [...new Set(countryIds)].map((id) => ({
         kind: 'country' as const,
         id,
       }));
-      set({
-        selection,
-        hover: NO_HOVER,
-        ...(selection.length === 0 ? { legendOpen: false } : {}),
-      });
+      set((s) => selectionChange(s, selection));
     },
     /** Focus view of one city, without the rest of its country. */
     selectCity(cityId: string) {
-      set({
-        selection: [{ kind: 'city' as const, id: cityId }],
-        hover: NO_HOVER,
-      });
+      set((s) => selectionChange(s, [{ kind: 'city' as const, id: cityId }]));
     },
     /** Combined view: one whole country plus a city ripped out of another country. */
     selectCountryWithCity(countryId: string, cityId: string) {
-      set({
-        selection: [
+      set((s) =>
+        selectionChange(s, [
           { kind: 'country' as const, id: countryId },
           { kind: 'city' as const, id: cityId },
-        ],
-        hover: NO_HOVER,
-      });
+        ]),
+      );
     },
     clearSelection() {
       set({ selection: [], hover: NO_HOVER, legendOpen: false });

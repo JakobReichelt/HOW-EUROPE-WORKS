@@ -17,6 +17,8 @@ import { viewportFor, type PointerInput, type Scene, type SceneContext } from '.
 export interface CanvasHandle {
   /** Schedule a redraw on the next animation frame. */
   requestRedraw(): void;
+  /** Synchronous draw; returns elapsed ms. For profiling only. */
+  measureDraw(): number;
   /** Debug snapshot of the active scene. */
   inspect(): unknown;
   /** Hit test at canvas pixel coordinates (explore only). */
@@ -113,8 +115,14 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
 
   const instance = new p5((sketch: p5) => {
     p = sketch;
+    let lastAriaLabel = '';
+    const targetDensity = (w: number, h: number) => {
+      const area = Math.max(1, w * h);
+      const areaCap = Math.sqrt(theme.canvas.maxBackingPixels / area);
+      return Math.max(1, Math.min(sketch.displayDensity(), theme.canvas.maxPixelRatio, areaCap));
+    };
     sketch.setup = () => {
-      sketch.pixelDensity(Math.min(sketch.displayDensity(), theme.canvas.maxPixelRatio));
+      sketch.pixelDensity(targetDensity(root.clientWidth, root.clientHeight));
       const canvas = sketch.createCanvas(root.clientWidth, root.clientHeight);
       sketch.noLoop();
       sketch.textFont(theme.font.family);
@@ -131,13 +139,21 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
       sketch.clear();
       sketch.background(theme.color.paper);
       scene.draw(ctx);
-      (sketch.drawingContext as CanvasRenderingContext2D).canvas.setAttribute(
-        'aria-label',
-        scene.describe(ctx),
-      );
+      const nextAriaLabel = scene.describe(ctx);
+      if (nextAriaLabel !== lastAriaLabel) {
+        lastAriaLabel = nextAriaLabel;
+        (sketch.drawingContext as CanvasRenderingContext2D).canvas.setAttribute(
+          'aria-label',
+          nextAriaLabel,
+        );
+      }
       if (scene.isAnimating?.()) requestRedraw();
     };
     sketch.windowResized = () => {
+      const nextDensity = targetDensity(root.clientWidth, root.clientHeight);
+      if (Math.abs(sketch.pixelDensity() - nextDensity) > 0.05) {
+        sketch.pixelDensity(nextDensity);
+      }
       sketch.resizeCanvas(root.clientWidth, root.clientHeight);
     };
   }, root);
@@ -146,12 +162,20 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
 
   return {
     requestRedraw,
+    measureDraw: () => {
+      if (!p) return 0;
+      const t0 = performance.now();
+      p.redraw();
+      return performance.now() - t0;
+    },
     inspect: () => {
       if (!p) return null;
       const ctx = context(p);
       return {
         scene: ctx.state.scene,
         ...((scenes[ctx.state.scene].inspect?.(ctx) as object) ?? {}),
+        pixelDensity: p.pixelDensity(),
+        canvas: { w: p.width, h: p.height },
       };
     },
     hitAt: (x, y) => (p ? explore.hitAt(context(p), { x, y }) : null),

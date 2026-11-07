@@ -95,8 +95,12 @@
   width: var(--panel-width);
 }
 
-/* Allow the active/hover edge-mark dots on the right border to hang into the canvas. */
-.panel--interaction[data-open='true'] {
+/*
+ * Edge-mark dots hang past the border only once the width has settled.
+ * During the open/close the content is the full open width, so overflow must
+ * stay hidden or that text paints outside the moving rectangle.
+ */
+.panel--interaction.is-settled {
   overflow: visible;
   clip-path: inset(0 calc(-1 * var(--mark-bleed)) 0 0);
 }

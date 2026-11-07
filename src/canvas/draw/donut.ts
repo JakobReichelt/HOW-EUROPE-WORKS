@@ -17,6 +17,7 @@ import {
   arcText,
   ctx2d,
   hatchAnnularSector,
+  measureGlyphSpan,
   radialLine,
   ringOutline,
   setDash,
@@ -273,7 +274,6 @@ export function drawSegment(
   const filteredOut = s.sectorFilter !== null && seg.sector !== s.sectorFilter;
   const line = theme.stroke.thin * s.lineScale;
   const hoverLine = theme.stroke.hover * s.lineScale;
-  const step = s.detail === 'mark' ? theme.canvas.arcStepCoarse : theme.canvas.arcStep;
 
   if (seg.shadow > 0) {
     p.noStroke();
@@ -284,14 +284,14 @@ export function drawSegment(
           ? tone(c.shadowHover)
           : tone(mixHex(c.shadow, c.shadowHover, selfMix));
     p.fill(shadowFill);
-    annularSector(p, g.cx, g.cy, seg.r1, seg.r1 + seg.shadow, seg.a0, seg.a1, step);
+    annularSector(p, g.cx, g.cy, seg.r1, seg.r1 + seg.shadow, seg.a0, seg.a1);
   }
 
   const sector = s.plain || filteredOut || !seg.sector ? c.paper : c.sector[seg.sector];
   p.fill(tone(sector));
   p.stroke(c.ink);
   p.strokeWeight(line + (hoverLine - line) * selfMix);
-  annularSector(p, g.cx, g.cy, seg.r0, seg.r1, seg.a0, seg.a1, step);
+  annularSector(p, g.cx, g.cy, seg.r0, seg.r1, seg.a0, seg.a1);
 
   if (s.detail === 'full' && seg.hatchA1 !== null && seg.hatchA1 > seg.a0) {
     hatchAnnularSector(
@@ -551,17 +551,13 @@ function revealOffset(runs: TextRun[]): number {
 function measureRuns(p: p5, runs: TextRun[]): number {
   let width = 0;
   for (const run of runs) {
-    p.textStyle(run.bold ? p.BOLD : p.NORMAL);
-    width += textSpanWidth(p, run.text);
+    width += measureGlyphSpan(p, run.text, !!run.bold);
   }
-  p.textStyle(p.NORMAL);
   return width;
 }
 
 function textSpanWidth(p: p5, text: string): number {
-  let width = 0;
-  for (const ch of text) width += p.textWidth(ch);
-  return width;
+  return measureGlyphSpan(p, text, false);
 }
 
 /**

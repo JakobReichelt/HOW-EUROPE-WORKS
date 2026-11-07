@@ -1,33 +1,31 @@
 /**
- * Density-1 snapshots of city names and gender labels for a settled donut.
- * The ring and centre name are drawn live; hover / drag / morph stay fully live.
- * At most one buffer rebuilds per frame so a pan never pays every glyph at once.
+ * Offscreen snapshots of settled donuts at native device-pixel resolution.
+ * Hovered, dragged and morphing donuts are drawn live as vectors; settled donuts
+ * blit from these 1:1 buffers so panning and hover fades never re-rasterize the map.
  */
 import type p5 from 'p5';
 import { theme } from '../../config/theme';
 import type { SectorFilter } from '../../state/types';
 import type { DonutGeometry } from '../layout/donutLayout';
 import type { DetailLevel } from '../view/visibility';
-import { drawDonutText } from './donut';
+import { drawDonut } from './donut';
+import { ctx2d } from './shapes';
 
 export interface DonutPicture {
   key: string;
-  /**
-   * Scale used while rasterizing. Blit covers `side / zoom` world units.
-   * Below the camera zoom when the buffer was capped.
-   */
-  zoom: number;
+  /** World-space width and height covered by the buffer (`(outer + labelPad) * 2`). */
+  span: number;
   gfx: p5.Graphics;
-  /** Buffer side in CSS px (density 1). */
+  /** Buffer side in device pixels. */
   side: number;
   sector: SectorFilter;
 }
 
 export interface PictureRequest {
-  /** Stable id. Overview uses the country; focus uses the selection and radius. */
+  /** Stable id. Overview uses `world:<countryId>`. */
   id: string;
   geom: DonutGeometry;
-  /** Camera zoom this frame (1 for a donut already in screen space). */
+  /** Camera zoom this frame. */
   zoom: number;
   /** Stroke and detail scale baked into the buffer. 1 in world space under `zoom`. */
   lineScale: number;
@@ -39,6 +37,7 @@ export interface PictureRequest {
   bakedZoom: number;
   sectorFilter: SectorFilter;
   detail: DetailLevel;
+  label: string | null;
   groupLabel: (countryId: string) => string;
 }
 
@@ -46,21 +45,22 @@ interface Stored extends DonutPicture {
   detail: DetailLevel;
 }
 
-function pictureKey(req: PictureRequest): string {
+function pictureKey(req: PictureRequest, density: number): string {
   const groups = req.geom.groups
     .map((group) => group.label ?? req.groupLabel(group.countryId))
     .join(',');
   return [
-    req.bakedZoom,
-    req.lineScale,
-    req.genderScale,
-    req.textScale,
+    req.bakedZoom.toFixed(4),
+    density.toFixed(2),
+    req.lineScale.toFixed(4),
+    req.genderScale.toFixed(4),
+    req.textScale.toFixed(4),
     req.sectorFilter ?? '',
     req.detail,
+    req.label ?? '',
     groups,
     req.geom.countryIds.join(','),
     req.geom.R,
-    'labels-only',
   ].join('|');
 }
 
@@ -74,7 +74,7 @@ export class DonutPictures {
 
   beginFrame(): void {
     this.seen.clear();
-    this.rebuildsLeft = 1;
+    this.rebuildsLeft = 2;
     this.deferred = false;
   }
 
@@ -83,14 +83,15 @@ export class DonutPictures {
     this.seen.add(id);
   }
 
-  /** True when at least one visible donut still needs a fresh label buffer. */
+  /** True when at least one visible donut still needs a fresh buffer. */
   hasDeferred(): boolean {
     return this.deferred;
   }
 
   /**
-   * Label picture to blit, or null when the caller should skip city labels this frame.
-   * Rebuilds at most once per frame; other misses keep a stale buffer or wait.
+   * Picture to blit, or null when the caller should draw live this frame.
+   * Rebuilds at most `rebuildsLeft` buffers per frame; other misses draw live vectors
+   * until their turn so there is never a low-res or missing-label frame.
    */
   pictureFor(req: PictureRequest): DonutPicture | null {
     this.seen.add(req.id);
@@ -98,18 +99,21 @@ export class DonutPictures {
     if (req.zoom !== req.bakedZoom) {
       return existing && existing.sector === req.sectorFilter ? existing : null;
     }
-    const key = pictureKey(req);
+    const density = this.host.pixelDensity();
+    const key = pictureKey(req, density);
     if (existing && existing.key === key) return existing;
     if (this.rebuildsLeft <= 0) {
       this.deferred = true;
-      return existing && existing.sector === req.sectorFilter ? existing : null;
+      return null;
     }
     this.rebuildsLeft -= 1;
-    return this.render(existing, req, key);
+    return this.render(existing, req, key, density);
   }
 
   endFrame(): void {
+    // Keep world-space country buffers cached across pans and hover states.
     for (const id of this.pictures.keys()) {
+      if (id.startsWith('world:')) continue;
       if (!this.seen.has(id)) this.drop(id);
     }
   }
@@ -123,15 +127,17 @@ export class DonutPictures {
     existing: Stored | undefined,
     req: PictureRequest,
     key: string,
+    density: number,
   ): DonutPicture | null {
     const zoom = req.bakedZoom;
-    const wanted = Math.ceil((req.geom.outer + theme.canvas.labelPad) * 2 * zoom);
+    const span = (req.geom.outer + theme.canvas.labelPad) * 2;
+    const wanted = Math.ceil(span * zoom * density);
     if (wanted < 1) {
       this.drop(req.id);
       return null;
     }
     const side = Math.min(wanted, theme.canvas.pictureMaxSide);
-    const drawZoom = zoom * (side / wanted);
+    const drawScale = side / span;
 
     let gfx: p5.Graphics;
     if (existing && existing.side === side) {
@@ -147,16 +153,16 @@ export class DonutPictures {
     gfx.push();
     gfx.textFont(theme.font.family);
     gfx.translate(side / 2, side / 2);
-    gfx.scale(drawZoom);
+    gfx.scale(drawScale);
     gfx.translate(-g.cx, -g.cy);
-    drawDonutText(gfx, g, {
+    drawDonut(gfx, g, {
       lineScale: req.lineScale,
       genderScale: req.genderScale,
       textScale: req.textScale,
       zoom,
       detail: req.detail,
       sectorFilter: req.sectorFilter,
-      label: null,
+      label: req.label,
       groupLabel: req.groupLabel,
       details: true,
       alpha: 1,
@@ -165,7 +171,7 @@ export class DonutPictures {
 
     const stored: Stored = {
       key,
-      zoom: drawZoom,
+      span,
       gfx,
       side,
       sector: req.sectorFilter,
@@ -199,15 +205,12 @@ export class DonutPictures {
 
 /** Draw a picture in the same space as `g` (world space under the camera, or screen space). */
 export function blitDonut(p: p5, pic: DonutPicture, g: DonutGeometry, alpha = 1): void {
-  const span = pic.side / pic.zoom;
-  p.push();
-  p.imageMode(p.CORNER);
-  if (alpha < 1) {
-    const ctx = p.drawingContext as CanvasRenderingContext2D;
-    ctx.globalAlpha = alpha;
-  } else {
-    p.noTint();
-  }
-  p.image(pic.gfx, g.cx - span / 2, g.cy - span / 2, span, span);
-  p.pop();
+  const canvas = pic.gfx.elt as HTMLCanvasElement | undefined;
+  if (!canvas) return;
+  const span = pic.span;
+  const ctx = ctx2d(p);
+  const prevAlpha = ctx.globalAlpha;
+  if (alpha < 1) ctx.globalAlpha = prevAlpha * alpha;
+  ctx.drawImage(canvas, g.cx - span / 2, g.cy - span / 2, span, span);
+  if (alpha < 1) ctx.globalAlpha = prevAlpha;
 }
