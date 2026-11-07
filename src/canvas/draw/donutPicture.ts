@@ -74,7 +74,11 @@ export class DonutPictures {
 
   beginFrame(): void {
     this.seen.clear();
-    this.rebuildsLeft = 2;
+    // Cold cache (first explore frame): bake every visible miss this frame so
+    // we never run a multi-frame live-vector fallback loop on first load.
+    // After that, rebuild at most two buffers per frame so a pan / sector
+    // change stays smooth.
+    this.rebuildsLeft = this.pictures.size === 0 ? Number.POSITIVE_INFINITY : 2;
     this.deferred = false;
   }
 
@@ -90,8 +94,8 @@ export class DonutPictures {
 
   /**
    * Picture to blit, or null when the caller should draw live this frame.
-   * Rebuilds at most `rebuildsLeft` buffers per frame; other misses draw live vectors
-   * until their turn so there is never a low-res or missing-label frame.
+   * On a cold cache, every visible miss rebuilds in this frame. After that,
+   * at most two buffers rebuild per frame; other misses draw live until their turn.
    */
   pictureFor(req: PictureRequest): DonutPicture | null {
     this.seen.add(req.id);

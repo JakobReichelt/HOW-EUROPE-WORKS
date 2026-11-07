@@ -34,9 +34,13 @@ function bindTypeScale(): void {
 
 async function main() {
   bindTypeScale();
+  const font = theme.font.family;
   const [dataset] = await Promise.all([
     loadDataset(),
-    document.fonts.load(`16px "${theme.font.family}"`).catch(() => undefined),
+    Promise.all([
+      document.fonts.load(`400 14px "${font}"`),
+      document.fonts.load(`700 18px "${font}"`),
+    ]).catch(() => undefined),
   ]);
   const data = indexDataset(dataset);
   const store = createStore(initialState);
