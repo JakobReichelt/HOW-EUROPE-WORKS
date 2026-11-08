@@ -13,17 +13,15 @@ export function drawBar(p: p5, g: BarGeometry): void {
   p.push();
 
   for (const line of g.callouts) {
-    if (!line.overBox) drawCallout(p, box, line);
+    if (!line.overBox) drawFaded(p, line.alpha, () => drawCallout(p, box, line));
   }
 
   if (g.shadow > 0) {
-    const ctx = ctx2d(p);
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    p.noStroke();
-    p.fill(c.shadow);
-    p.rect(box.x, box.y - g.shadow, box.w, g.shadow);
-    ctx.restore();
+    drawFaded(p, g.shadowAlpha ?? 0.5, () => {
+      p.noStroke();
+      p.fill(c.shadow);
+      p.rect(box.x, box.y - g.shadow, box.w, g.shadow);
+    });
   }
 
   p.fill(c.paper);
@@ -46,10 +44,10 @@ export function drawBar(p: p5, g: BarGeometry): void {
   }
 
   for (const line of g.callouts) {
-    if (line.overBox) drawCallout(p, box, line);
+    if (line.overBox) drawFaded(p, line.alpha, () => drawCallout(p, box, line));
   }
 
-  for (const arrow of g.scaleArrows) drawScaleArrow(p, arrow);
+  for (const arrow of g.scaleArrows) drawFaded(p, arrow.alpha, () => drawScaleArrow(p, arrow));
 
   if (g.genderX !== null) {
     const bottom = box.y + box.h;
@@ -78,6 +76,16 @@ export function drawBar(p: p5, g: BarGeometry): void {
 
   if (g.bracket) drawBracket(p, g.bracket);
   p.pop();
+}
+
+function drawFaded(p: p5, alpha: number | undefined, draw: () => void): void {
+  const a = alpha ?? 1;
+  if (a <= 0.004) return;
+  const ctx = ctx2d(p);
+  ctx.save();
+  ctx.globalAlpha = a;
+  draw();
+  ctx.restore();
 }
 
 function drawCallout(p: p5, box: Rect, line: BarCallout): void {

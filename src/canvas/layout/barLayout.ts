@@ -7,6 +7,7 @@ import { theme } from '../../config/theme';
 import type { IntroFigure } from '../../content/intro';
 import { formatInt, formatMinutes, formatPercent } from '../../data/format';
 import type { City, Level3 } from '../../data/types';
+import { clamp01 } from '../anim/tween';
 import type { Rect } from '../geometry';
 
 const t = theme.intro;
@@ -25,6 +26,8 @@ export interface BarCallout {
   overBox: boolean;
   /** Keep only the part to the right of the box; the rest would cross the interior. */
   outsideBox: boolean;
+  /** 0-1. Omitted lines are fully opaque. */
+  alpha?: number;
 }
 
 export interface BarBracket {
@@ -40,6 +43,8 @@ export interface BarScaleArrow {
   x: number;
   y0: number;
   y1: number;
+  /** 0-1. Omitted arrows are fully opaque. */
+  alpha?: number;
 }
 
 export interface BarGeometry {
@@ -51,6 +56,8 @@ export interface BarGeometry {
   genderLabel: { strong: string; rest: string } | null;
   /** Thickness of the grey band sitting on the box. */
   shadow: number;
+  /** Grey band opacity. Omitted bands use the resting 0.5. */
+  shadowAlpha?: number;
   callouts: BarCallout[];
   /** Commute-step only: small red arrows between consecutive time lines. */
   scaleArrows: BarScaleArrow[];
@@ -107,7 +114,7 @@ export function barLayout(city: City, figure: IntroFigure): BarGeometry {
       soft: boolean;
     }) => {
       const y = bottom - ((opts.minutes ?? baseline) - anchor) * t.pxPerMinute;
-      const onBottom = Math.abs(y - bottom) < 1.5;
+      const edge = againstBox(y, box);
       const explained = named && opts.active && opts.tone === 'commute';
       callouts.push({
         x0: explained ? box.x + t.longGuideInset : right - t.calloutInset,
@@ -118,8 +125,8 @@ export function barLayout(city: City, figure: IntroFigure): BarGeometry {
         label: named ? opts.label : null,
         labelMuted: !opts.active,
         soft: opts.soft,
-        overBox: onBottom,
-        outsideBox: !onBottom && y > box.y && y < bottom,
+        overBox: edge.overBox,
+        outsideBox: edge.outsideBox,
       });
       scaleYs.push(y);
     };
@@ -192,4 +199,41 @@ export function barLayout(city: City, figure: IntroFigure): BarGeometry {
     scaleArrows,
     bracket,
   };
+}
+
+/**
+ * Rectangle only, from the unemployment baseline (t = 0) to the commute lift (t = 1).
+ * `figure` is the stage on screen: its legend is drawn as-is and does not fade or move.
+ */
+export function commuteSlideLayout(
+  city: City,
+  figure: 'unemployment' | 'commute',
+  t: number,
+): BarGeometry {
+  const pose = clamp01(t);
+  const rest = barLayout(city, 'unemployment');
+  const lifted = barLayout(city, 'commute');
+  const shown = figure === 'commute' ? lifted : rest;
+  const box: Rect = {
+    x: shown.box.x,
+    y: rest.box.y + (lifted.box.y - rest.box.y) * pose,
+    w: shown.box.w,
+    h: shown.box.h,
+  };
+  return {
+    ...shown,
+    box,
+    callouts: shown.callouts.map((line) => placeAgainstBox(line, box)),
+  };
+}
+
+/** A guide sits on the box floor, or is clipped once it would cross the fill. */
+function againstBox(y: number, box: Rect): { overBox: boolean; outsideBox: boolean } {
+  const bottom = box.y + box.h;
+  const overBox = Math.abs(y - bottom) < 1.5;
+  return { overBox, outsideBox: !overBox && y > box.y && y < bottom };
+}
+
+function placeAgainstBox(line: BarCallout, box: Rect): BarCallout {
+  return { ...line, ...againstBox(line.y, box) };
 }

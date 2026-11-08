@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { introFrame } from '../src/config/introFrame';
 import { theme } from '../src/config/theme';
-import { barLayout } from '../src/canvas/layout/barLayout';
+import { barLayout, commuteSlideLayout } from '../src/canvas/layout/barLayout';
 import { viewportFor } from '../src/canvas/scenes/Scene';
 import { makeCity } from './fixtures';
 
@@ -133,5 +133,38 @@ describe('intro bar', () => {
         (line) => line.x1 - line.x0 === theme.intro.calloutInset + theme.intro.calloutPast,
       ),
     ).toBe(true);
+  });
+
+  it('slides only the rectangle; the stage legend stays put', () => {
+    const rest = barLayout(city, 'unemployment');
+    const lifted = barLayout(city, 'commute');
+    const labels = (t: number, figure: 'unemployment' | 'commute') =>
+      commuteSlideLayout(city, figure, t).callouts.map((line) => line.label);
+
+    expect(commuteSlideLayout(city, 'commute', 0).box).toEqual(rest.box);
+    expect(commuteSlideLayout(city, 'commute', 1).box).toEqual(lifted.box);
+    expect(commuteSlideLayout(city, 'commute', 0.5).box.y).toBeCloseTo(
+      (rest.box.y + lifted.box.y) / 2,
+    );
+
+    expect(labels(0, 'commute')).toEqual(labels(1, 'commute'));
+    expect(labels(0.5, 'commute')).toEqual(lifted.callouts.map((line) => line.label));
+    expect(labels(0.5, 'commute')).not.toContain('low');
+    expect(commuteSlideLayout(city, 'commute', 0.5).shadow).toBe(0);
+    expect(commuteSlideLayout(city, 'commute', 0.5).scaleArrows).toEqual(lifted.scaleArrows);
+
+    const back = commuteSlideLayout(city, 'unemployment', 0.5);
+    expect(back.box.y).toBeCloseTo((rest.box.y + lifted.box.y) / 2);
+    expect(back.callouts.map((line) => line.label)).toEqual(
+      rest.callouts.map((line) => line.label),
+    );
+    expect(back.shadow).toBe(rest.shadow);
+    expect(back.scaleArrows).toEqual([]);
+
+    for (const label of ['50 min', '40 min', '30 min', 'no data']) {
+      const yAt = (t: number) =>
+        commuteSlideLayout(city, 'commute', t).callouts.find((line) => line.label === label)?.y;
+      expect(yAt(0)).toBe(yAt(1));
+    }
   });
 });

@@ -22,6 +22,7 @@ import {
   framePoint,
   panBy,
   screenToWorld,
+  wheelPan,
   worldToScreen,
   type Camera,
 } from '../camera';
@@ -48,7 +49,7 @@ import {
   selectionTargetCountry,
 } from '../view/handoff';
 import { circleHitsViewport, detailLevel } from '../view/visibility';
-import type { PointerInput, Scene, SceneContext } from './Scene';
+import type { PointerInput, Scene, SceneContext, WheelInput } from './Scene';
 
 export type ExploreMode = 'overview' | 'focus' | 'combined';
 
@@ -1309,6 +1310,20 @@ export class ExploreScene implements Scene {
     if (!home) return { x: 0, y: 0 };
     const at = screenToWorld(this.camera, ctx.viewport, this.pointer);
     return { x: at.x - drag.grab.x - home.x, y: at.y - drag.grab.y - home.y };
+  }
+
+  /**
+   * Trackpad two-finger scroll and the mouse wheel pan the overview.
+   * Pinch-zoom (ctrlKey) is ignored: the overview zoom stays fixed.
+   */
+  wheel(ctx: SceneContext, e: WheelInput): boolean {
+    if (e.ctrlKey) return false;
+    if (this.session) return false;
+    if (exploreMode(ctx.state.selection) !== 'overview') return false;
+    const { x, y } = wheelPan(e, ctx.viewport);
+    if (x === 0 && y === 0) return false;
+    this.camera = panBy(this.camera, x, y);
+    return true;
   }
 
   pointerLeave(ctx: SceneContext): boolean {

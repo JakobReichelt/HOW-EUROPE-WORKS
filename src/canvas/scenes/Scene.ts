@@ -24,6 +24,15 @@ export interface PointerInput extends Point {
   button: number;
 }
 
+export interface WheelInput extends PointerInput {
+  deltaX: number;
+  deltaY: number;
+  /** WheelEvent.deltaMode: 0 pixels, 1 lines, 2 pages. */
+  deltaMode: number;
+  /** Set for pinch-zoom. That gesture is not a pan. */
+  ctrlKey: boolean;
+}
+
 export interface Scene {
   /** `from` is the scene that was showing, or null on the first frame. */
   enter?(ctx: SceneContext, from?: SceneId | null): void;
@@ -41,7 +50,7 @@ export interface Scene {
   pointerMove?(ctx: SceneContext, e: PointerInput): boolean;
   pointerUp?(ctx: SceneContext, e: PointerInput): boolean;
   pointerLeave?(ctx: SceneContext): boolean;
-  wheel?(ctx: SceneContext, e: PointerInput & { deltaY: number }): boolean;
+  wheel?(ctx: SceneContext, e: WheelInput): boolean;
   /** Return true if the key was handled. A handled key also requests a redraw. */
   key?(ctx: SceneContext, key: string): boolean;
   /** Short text alternative for the canvas (aria-label). */

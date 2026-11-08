@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitCamera, fitZoom, zoomAt } from '../src/canvas/camera';
+import { fitCamera, fitZoom, panBy, wheelPan, zoomAt } from '../src/canvas/camera';
 import { theme } from '../src/config/theme';
 
 describe('camera fit / zoom limits', () => {
@@ -23,5 +23,31 @@ describe('camera fit / zoom limits', () => {
       max: theme.zoom.max,
     });
     expect(next.zoom).toBeCloseTo(min);
+  });
+});
+
+describe('wheel pan', () => {
+  const viewport = { w: 800, h: 600 };
+  const cam = { x: 0, y: 0, zoom: 2 };
+
+  it('uses trackpad and pixel-wheel deltas 1:1, view following the scroll', () => {
+    const { x, y } = wheelPan({ deltaX: 40, deltaY: 100, deltaMode: 0 }, viewport);
+    const next = panBy(cam, x, y);
+    expect(next.x).toBeCloseTo(20);
+    expect(next.y).toBeCloseTo(50);
+  });
+
+  it('converts line-mode notches into wheelLinePx', () => {
+    const { x, y } = wheelPan({ deltaX: -1, deltaY: 3, deltaMode: 1 }, viewport);
+    const next = panBy(cam, x, y);
+    expect(next.x).toBeCloseTo(-theme.zoom.wheelLinePx / cam.zoom);
+    expect(next.y).toBeCloseTo((3 * theme.zoom.wheelLinePx) / cam.zoom);
+  });
+
+  it('treats one page as the viewport size on that axis', () => {
+    const { x, y } = wheelPan({ deltaX: 1, deltaY: -1, deltaMode: 2 }, viewport);
+    const next = panBy(cam, x, y);
+    expect(next.x).toBeCloseTo(viewport.w / cam.zoom);
+    expect(next.y).toBeCloseTo(-viewport.h / cam.zoom);
   });
 });

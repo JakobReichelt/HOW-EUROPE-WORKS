@@ -35,6 +35,42 @@ export function panBy(cam: Camera, dx: number, dy: number): Camera {
   return { ...cam, x: cam.x - dx / cam.zoom, y: cam.y - dy / cam.zoom };
 }
 
+/** WheelEvent.deltaMode: pixels, lines, pages. */
+const WHEEL_DELTA_PIXEL = 0;
+const WHEEL_DELTA_LINE = 1;
+const WHEEL_DELTA_PAGE = 2;
+
+export interface WheelDelta {
+  deltaX: number;
+  deltaY: number;
+  /** 0 pixels, 1 lines, 2 pages. */
+  deltaMode: number;
+}
+
+/**
+ * Screen-space pan for a mouse wheel or trackpad scroll, ready for `panBy`.
+ * Pixel deltas (trackpads and most Chromium wheels) are used 1:1.
+ * Line and page modes are converted so a notch still moves the map.
+ * Scrolling down or right moves the view that way, matching a dragged canvas.
+ */
+export function wheelPan(
+  wheel: WheelDelta,
+  viewport: { w: number; h: number },
+  linePx: number = theme.zoom.wheelLinePx,
+): Point {
+  return {
+    x: -wheel.deltaX * wheelScale(wheel.deltaMode, viewport.w, linePx),
+    y: -wheel.deltaY * wheelScale(wheel.deltaMode, viewport.h, linePx),
+  };
+}
+
+function wheelScale(deltaMode: number, pagePx: number, linePx: number): number {
+  if (deltaMode === WHEEL_DELTA_LINE) return linePx;
+  if (deltaMode === WHEEL_DELTA_PAGE) return pagePx;
+  if (deltaMode === WHEEL_DELTA_PIXEL) return 1;
+  return 1;
+}
+
 /**
  * Camera that shows `world` at `screen`, with `worldSpan` world units covering
  * `screenSpan` pixels. Zoom is clamped; the world point stays on the screen point.

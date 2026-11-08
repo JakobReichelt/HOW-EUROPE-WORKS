@@ -136,6 +136,8 @@ export const theme = {
     panMs: 380,
     /** Share of the morph during which a dropped ghost fades out. */
     ghostFadeShare: 0.33,
+    /** Zurich bar sliding between the unemployment and commute intro steps. */
+    introMs: 280,
     /** Sidebar panel and info-section accordion. */
     accordionMs: 280,
   },
@@ -145,6 +147,11 @@ export const theme = {
     /** Ceiling for framing helpers. The overview stays further out than the design-scale view. */
     max: 2,
     wheelStep: 1.1,
+    /**
+     * Pixels per wheel line (DOM_DELTA_LINE). Pixel-mode wheels and trackpads
+     * are already in screen pixels and are not scaled.
+     */
+    wheelLinePx: 40,
     /** Screen px inset when fitting every country donut in the viewport. */
     fitPadding: 48,
   },

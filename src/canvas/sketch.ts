@@ -100,7 +100,15 @@ export function mountSketch(root: HTMLElement, deps: SketchDeps): CanvasHandle {
       'wheel',
       (e) => {
         e.preventDefault();
-        withScene((s, ctx) => s.wheel?.(ctx, { ...input(e), deltaY: e.deltaY }));
+        withScene((s, ctx) =>
+          s.wheel?.(ctx, {
+            ...input(e),
+            deltaX: e.deltaX,
+            deltaY: e.deltaY,
+            deltaMode: e.deltaMode,
+            ctrlKey: e.ctrlKey,
+          }),
+        );
       },
       { passive: false },
     );
